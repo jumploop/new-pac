@@ -22,7 +22,7 @@ jobs:
       # 2. 克隆 Wiki 仓库到 wiki 目录
       - name: Checkout Wiki Repository
         run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Alvin9999/new-pac.wiki.git wiki
+          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/jumploop/new-pac.wiki.git wiki
 
       # 3. 设置 Python 环境
       - name: Set up Python
@@ -47,7 +47,7 @@ jobs:
           git config --local user.email "actions@github.com"
           git add README.md
           git commit -m "Auto-update README.md: Update timestamp" || echo "No changes to commit"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Alvin9999/new-pac.git
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/jumploop/new-pac.git
 
       # 7. 提交和推送更新到 Wiki 仓库
       - name: Commit and Push Wiki Updates
@@ -57,4 +57,4 @@ jobs:
           git config --local user.email "actions@github.com"
           git add .
           git commit -m "Auto-update Wiki: Increment domains and update timestamp" || echo "No changes to commit"
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/Alvin9999/new-pac.wiki.git
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/jumploop/new-pac.wiki.git
