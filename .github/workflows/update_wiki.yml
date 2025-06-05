@@ -53,7 +53,7 @@ jobs:
       - name: Commit and Push Wiki Updates
         run: |
           git clone https://github.com/Alvin9999/new-pac.wiki.git
-          rsync -av --delete new-pac.wiki/ wiki
+          rsync -av --exclude '.git/' --delete new-pac.wiki/ wiki
           rm -rf ../new-pac.wiki
           cd wiki
           git config --local user.name "github-actions"
