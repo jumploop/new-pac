@@ -1,8 +1,8 @@
 name: Auto Update Wiki and README
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'  # 每 10 分钟执行一次
+  # schedule:
+  # - cron: '*/10 * * * *'  # 每 10 分钟执行一次
   workflow_dispatch:       # 支持手动触发
 
 permissions:
