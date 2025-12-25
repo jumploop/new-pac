@@ -20,9 +20,9 @@ jobs:
           fetch-depth: 0
 
       # 2. 克隆 Wiki 仓库到 wiki 目录
-      - name: Checkout Wiki Repository
+      - name: list file and dir
         run: |
-          git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/jumploop/new-pac.wiki.git wiki
+          ls -lah
 
       # 6. 提交和推送更新到主仓库（README.md）
       - name: Commit and Push repo Updates
