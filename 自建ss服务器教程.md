@@ -2,11 +2,11 @@
 
 ***
 
-**整个教程分三步**：
+**自建ss/ssr教程很简单，整个教程分三步**：
 
 第一步：购买VPS服务器
 
-第二步：一键搭建服务器
+第二步：一键部署VPS服务器
 
 第三步：一键加速VPS服务器 （五合一的TCP网络加速脚本）
 
@@ -36,7 +36,6 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 ![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v0.jpg)
 
 依次点击Account——Make a payment——Alipay(支付宝)
-
 
 **vultr改版了，最新开通服务器步骤如图**：
 
@@ -92,7 +91,6 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 服务器ip和系统密码可以看到并能复制。
 
-
 **删掉服务器步骤如下图**：
 
 删除服务器时，先开新的服务器后再删除旧服务器，这样可以保证新服务器的ip与旧ip不同。
@@ -101,10 +99,10 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 ![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/ss/de5.png)
 
+
 ***
 
-
-**第二步：一键搭建VPS服务器**
+**第二步：部署VPS服务器**
 
 购买服务器后，需要部署一下。因为你买的是虚拟东西，而且又远在国外，我们需要一个叫Xshell的软件来远程部署。Xshell windows版下载地址：
 
@@ -147,65 +145,89 @@ xshell5:
 
 连接成功后，会出现如上图所示，之后就可以复制粘贴代码部署了。
 
-一键安装sing-box脚本，开箱即用 18 个节点（直连 9 + WARP 9），包括2个 Trojan Reality节点，含端口一键切换、BBR 加速、分享链接导出等。支持系统：Debian 11+ / Ubuntu 20.04+ / CentOS Stream 9+ / Rocky 9+ / AlmaLinux 9+ / Fedora 38+ / Arch(rolling) / openSUSE Leap 15.4+，已在[Vultr](https://www.vultr.com/?ref=7048874) 上测试通过。脚本地址：[Alvin9999-newpac/Sing-Box-Plus](https://github.com/Alvin9999-newpac/Sing-Box-Plus)
-
-```bash
-wget -O sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac/Sing-Box-Plus/main/sing-box-plus.sh && chmod +x sing-box-plus.sh && bash sing-box-plus.sh
-```
-
-或者
-
-```bash
-curl -fsSL -o sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac/Sing-Box-Plus/main/sing-box-plus.sh  && chmod +x sing-box-plus.sh && bash sing-box-plus.sh
-```
-
-> 安装完成后，输入 bash sing-box-plus.sh 可进入管理页面。
-
-> 如果安装过其它 sing-box 脚本，请先卸载。
 
 ***
 
-**脚本演示**
+**如果搭建SSR账号，目前推荐的SSR参数设置为以下，有利于突破网络封锁，参数如下**：
 
-复制上面安装命令代码到VPS服务器里，复制代码用鼠标右键的复制，然后在vps里面右键粘贴进去，因为ctrl+c和ctrl+v无效。
+1、加密方式：aes-256-cfb 协议：origin 混淆：tls1.2_ticket_auth
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-1.png)
+2、加密方式：chacha20-ietf 协议：auth_chain_a 混淆：plain
 
-复制脚本后，按回车键。
+**如果搭建SS账号，请使用SS脚本，加密方式推荐aes-256-gcm**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-2.png)
+***
 
-出现管理界面后，输入数字 1 来安装脚本，按回车键。脚本全自动安装。
+**支持 Debian 9-13、Ubuntu 18.04-25.04 等高版本 Linux 系统，推荐 Debian/Ubuntu 系统。**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-3.png)
+**SSR 脚本（新），支持 Debian 9-13、Ubuntu 18.04-25.04 等高版本 Linux 系统，安装完成后，快捷管理命令：bash ssr-plus.sh  脚本地址：[Alvin9999-newpac-newpac/SSR-Plus](https://github.com/Alvin9999-newpac-newpac/SSR-Plus) 如果使用新脚本，请先把旧脚本卸载了。**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-4.png)
+***
 
-## ✨ 默认部署内容（18 个节点）
+```bash
+wget -O ssr-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac-newpac/SSR-Plus/main/ssr-plus.sh && chmod +x ssr-plus.sh && bash ssr-plus.sh
+```
+***
 
-**直连 9：**
+**SS 脚本**
 
-* VLESS Reality（Vision 流）
-* VLESS gRPC Reality
-* Trojan Reality
-* VMess WS
-* Hysteria2（直连证书）
-* Hysteria2 + OBFS(salamander)
-* Shadowsocks 2022（2022-blake3-aes-256-gcm）
-* Shadowsocks（aes-256-gcm）
-* TUIC v5（ALPN h3，自签证书）
+**SS脚本没有单独做图文教程，参考SSR脚本的图文说明摸索下就会了。安装完成后，快捷管理命令：bash ss-go.sh**
 
-​**WARP 9：**（同上 9 种，出站经 Cloudflare WARP）
+***
 
-> WARP 出站更利于流媒体解锁与回程质量。
+```bash
+wget -N --no-check-certificate https://raw.githubusercontent.com/ToyoDAdoubiBackup/doubi/master/ss-go.sh && chmod +x ss-go.sh && bash ss-go.sh
+```
 
-用鼠标复制所有节点链接一键导入到软件中。以v2ray为例，导入后界面：
+***
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-5.png)
+> 如果输入安装命令后提示wget: command not found，那是因为服务器系统没有自带wget命令，安装一下wget。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-6.png)
+> CentOS系统安装curl命令：yum install -y wget
 
-脚本还有其它功能：查看分享链接、一键更换所有端口 、一键开启 BBR。可以输入数字 5 来启动 BBR 加速，这样就不用单独部署 BBR 加速脚本。
+> Debian/Ubuntu系统安装curl命令：apt-get install -y wget
+
+
+***
+
+
+复制上面的**SSR脚本代码**到VPS服务器里，复制代码用鼠标右键的复制（整个代码一起复制，而不是分段哦！），然后在vps里面右键粘贴进去，因为ctrl+c和ctrl+v无效。接着按回车键，脚本会自动安装，以后只需要运行这个快捷命令就可以出现下图的界面进行设置，快捷管理命令为：bash ssr-plus.sh
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-ssr1.png)
+
+输入数字 1 安装SSR。
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-ssr2.png)
+
+端口、密码、加密方式、协议、混淆，全部回车，或者自己输入或选择想要的。
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-ssr3.png)
+
+搭建好后，会生成SSR账号信息以及SSR链接。
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-ssr4.png)
+
+Debian/Ubuntu系统，可以输入数字 8 来启动BBR + TCP Fast Open加速，这样就不用单独部署 BBR 加速脚本。
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-ssr5.png)
+
+输入数字 9 可以更新脚本。
+
+
+***
+
+**高阶篇**
+
+当封锁特别厉害的时候，常规的SS/SSR配置可能已经无法满足需求，这个时候SSR节点我们可以搭建SSR+TLS+Caddy，搭建需要购买域名，可以参考这个[域名购买及设置教程](https://github.com/Alvin9999-newpac-newpac/fanqiang/wiki/%E5%9F%9F%E5%90%8D%E8%B4%AD%E4%B9%B0%E6%95%99%E7%A8%8B) （有免费域名） 。如果搭建SS节点，推荐SS+插件，比如v2ray插件模式下的SS+Websocket，这个配置不用域名就可以搭建。
+
+用一键搭建工具ProxySU来搭建即可，傻瓜式，很方便，[一键搭建工具ProxySU使用教程](https://github.com/Alvin9999-newpac-newpac/fanqiang/wiki/%E4%B8%80%E9%94%AE%E6%90%AD%E5%BB%BA%E7%A7%91%E5%AD%A6%E4%B8%8A%E7%BD%91%E5%B7%A5%E5%85%B7ProxySU)
+
+示意图:
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/ssimage/ssrtls.PNG)
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/ssimage/ss-plugin2.png)
+
 
 ***
 
@@ -256,45 +278,66 @@ chmod +x tcp.sh
 
 ![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/vultr/newbbr6.jpg)
 
+
 ***
 
-【v2rayN客户端下载及使用方法】
+【SSR客户端下载】
 
-**客户端使用教程：[v2ray各平台图文使用教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/v2ray%E5%90%84%E5%B9%B3%E5%8F%B0%E5%9B%BE%E6%96%87%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)**
+第一次电脑系统使用SSR/SS客户端时，如果提示你需要安装NET Framework 4.0，网上搜一下这个东西，安装一下即可。NET Framework 4.0是SSR/SS的运行库，没有这个SSR/SS客户端无法正常运行。有的电脑系统可能会自带NET Framework 4.0。
 
-Windows/Mac/Linux v2rayN 客户端：[Github最新版下载](https://github.com/2dust/v2rayN/releases/latest) (下载带core的文件) [Github镜像下载](https://jgithub.xyz/2dust/v2rayN/releases/latest) (下载带core的文件)
+Windows SSR客户端：[github最新版下载](https://github.com/shadowsocksr-backup/shadowsocksr-csharp/releases) [github镜像下载](https://dgithub.xyz/shadowsocksr-backup/shadowsocksr-csharp/releases)
 
-以Windows v2rayN客户端为例：
+Windows SS 客户端：[github最新版下载](https://github.com/shadowsocks/shadowsocks-windows/releases) [github镜像下载](https://dgithub.xyz/shadowsocks/shadowsocks-windows/releases) 
 
-第一步，按照地址下载v2rayN客户端，然后解压缩后打开应用：
+Mac SSR客户端：[github最新版下载](https://github.com/shadowsocksr-backup/ShadowsocksX-NG/releases)  [github镜像下载](https://dgithub.xyz/shadowsocksr-backup/ShadowsocksX-NG/releases) 
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202500.png)
+Linux 客户端：[下载地址](https://d2.freessr2.xyz/Shadowsocks-Qt5-x86_64-v3.0.1.AppImage)
 
-第二步，在任务栏中找到蓝色V图标，单击打开客户端界面，点击配置项
+安卓SSR 客户端：[github最新版下载](https://github.com/shadowsocksr-backup/shadowsocksr-android/releases) [github镜像下载](https://dgithub.xyz/shadowsocksr-backup/shadowsocksr-android/releases)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202501.png)
+iOS：[没有美区AppleID的翻墙教程](https://github.com/Alvin9999-newpac-newpac/fanqiang/wiki/%E8%8B%B9%E6%9E%9C%E6%89%8B%E6%9C%BA%E7%BF%BB%E5%A2%99%E8%BD%AF%E4%BB%B6)  [iOS注册美区Apple ID教程](https://github.com/Alvin9999-newpac-newpac/fanqiang/wiki/iOS%E6%B3%A8%E5%86%8C%E7%BE%8E%E5%8C%BAApple-ID%E6%95%99%E7%A8%8B) 
 
-复制节点一键导入链接后，选择“从剪贴板导入分享链接”即可把节点导入到软件中，可以批量导入。或者也可以通过扫描二维码或者手动填写节点信息。
+***
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202504.png)
+**有了账号后，打开SSR客户端，填上信息，这里以windows版的SSR客户端为例子**：
 
-第三步，鼠标选中想用的节点，右键选择设置为活动服务器或者按回车，启用该节点。软件每次只能启用1个节点。
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/13.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202502.png)
+在对应的位置，填上服务器ip、服务器端口、密码、加密方式、协议和混淆。
 
-第四步，在任务栏中右键v2rayN图标，选择“自动配置系统代理”，之后就可以通过浏览器翻墙了。
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ssrdl001.jpg)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202503.png)
+启动SSR客户端后，右键SSR客户端图标，选择第一个“系统代理模式”，里面有3个子选项，选择"全局模式“，之后就可以用浏览器翻墙。
 
-如果路由选择“绕过大陆”，那么国内没有被封的网址就没有被代理。如果路由选择“全局”，那么所有的网址都会被代理。
 
-**快速检测节点是否有效**
+***
 
-选中所有节点，选择“测试真链接”，如果延迟结果是“-1”，那么该节点不可用，反之节点可用。
+**常见问题及解决方法**：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202505.png)
+**1、搭建的账号之前能用，突然不能用了，怎么解决？**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202506.png)
+A：如果ip不能ping通，xshell不能直接连接vps服务器，说明ip被墙了，需要换ip。vultr开通和删除服务器非常方便，新服务器即新ip，为了保证开通的新服务器ip和旧ip不一样，先开新服务器出现ip后再删旧服务器。其它大多数vps服务商换ip都要额为收费。
+
+B: 如果ip能ping，xshell能直接连接vps服务器，说明ip没有被墙，多半是端口被封了，优先换端口。测试端口是否正常网址http://port.ping.pe/91.206.93.36:12345 ，将ip换成你自己的vps ip，端口是ssr账号端口，中间的冒号为英文状态下的冒号。测试结果如果全是绿色，那么代表端口正常；如果国外是绿色，国内是红色，代表端口被封；如果全是红色，代表服务没有正常启动或者没有正常搭建成功。
+
+C：混淆选择plain意思是不混淆，有的时期增加混淆有利于突破封锁，有的时期不混淆有利用突破封锁，需要自己来尝试。
+
+2、电脑能用但手机用不了？
+
+如果你的手机用的是SS客户端，SS客户端没有填协议和混淆的地方，如果你部署的协议和混淆的时候没有选择兼容原版（SS版），因此手机是用不了的。这个时候你把协议弄成兼容原版、混淆也设置成兼容原版即可。或者直接将协议设置成origin且混淆设置成plain。
+
+3、vultr服务商提供的vps服务器是单向流量计算，有的vps服务商是双向流量计算，单向流量计算对于用户来说更实惠。因为我们是在vps服务器上部署SSR服务端后，再用SSR客户端翻墙，所以SSR服务端就相当于中转，比如我们看一个视频，必然会产生流量，假如消耗流量80M，那么VPS服务器会产生上传80M和下载80M流量，vultr服务商只计算单向的80M流量。如果是双向计算流量，那么会计算为160M流量。
+
+
+4、vultr怎样才能申请退款呢？
+
+vultr和其他的国外商家一样，都是使用工单的形式与客服联系，如果需要退款，直接在后台点击support，选择open ticket新开一个工单，选择billing question财务问题，简单的在文本框输入你的退款理由。比如：Please refund all the balance in my account。工单提交以后一般很快就可以给你确认退款，若干个工作日后就会退回你的支付方式。（全额退款结束后，账号可能会被删除）
+
+如果英语水平不好，但是想和客服进行交流，可以用百度在线翻译，自动中文转英文和英文转中文。
+
+5、如果电脑想用搭建的ss/ssr账号玩游戏，即实现类似VPN全局代理，可以用SSTAP，具体方法可以网上搜索。
+
+6、配置bbr加速脚本，重启电脑后xshell无法连接服务器。如果你遇到这样的问题，只能把服务器删除了，重新搭建个新的，可以先配置bbr加速脚本再配置ss/ssr脚本。
 
 ***
 

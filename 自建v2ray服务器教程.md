@@ -1,4 +1,4 @@
-**2024年9月10日更新。**
+**2025年12月21日更新。**
 
 ***
 
@@ -12,19 +12,13 @@
 
 ***
 
-**【前言】**
-
-**v2ray的优势**：v2ray支持的传输方式有很多，包括：普通TCP、HTTP伪装、WebSocket流量、普通mKCP、mKCP伪装FaceTime通话、mKCP伪装BT下载流量、mKCP伪装微信视频流量，不同的传输方式其效果会不同，有可能会遇到意想不到的效果哦！当然国内不同的地区、不同的网络环境，效果也会不同，所以具体可以自己进行测试。现在v2ray客户端也很多了，有windows、MAC、linux和安卓版。
-
-***
-
 **第一步：购买VPS服务器**
 
 VPS服务器需要选择国外的，首选国际知名的vultr，速度不错、稳定且性价比高，按小时计费，能够随时开通和删除服务器，新服务器即是新ip。
 
 vultr注册地址：https://www.vultr.com/?ref=7048874 （vps最低2.5美元/月，vultr全球32个服务器位置可选，包括洛杉矶、韩国、新加坡、日本、德国、荷兰等。支持支付宝和paypal付款。） 
 
-<a href="https://www.vultr.com/?ref=7048874"><img src="https://www.vultr.com/media/banners/banner_728x90.png" width="728" height="90"></a>
+<a href="https://www.vultr.com/?ref=7048874"><img src="https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/vultr_728x90.png" width="728" height="90"></a>
 
 虽然是英文界面，但是现在的浏览器都有网页翻译功能，鼠标点击右键，选择网页翻译即可翻译成中文。
 
@@ -38,57 +32,61 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 **账号充值如图**：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v0.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v0.jpg)
 
 依次点击Account——Make a payment——Alipay(支付宝)
 
 **vultr改版了，最新开通服务器步骤如图**：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v1.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v1.jpg)
 
 点击网页右上角的Deploy图标
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2.jpg)
 
 在下拉菜单中，点击Deploy New Server
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v3.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-1.png)
 
-服务器类型选择Cloud Compute-Shared CPU
+服务器类型选择Shared CPU，选择服务器位置。不同的服务器位置速度会有所不同。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v4.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-2.png)
 
-选择服务器位置。不同的服务器位置速度会有所不同，有的服务器的最低价格会不同，一般纽约等位置的价格最低，有3.5美元/月的，可根据自己的需求来选择。推荐洛杉矶服务器，延迟较低且比较稳定。
+选择服务器套餐。有的服务器的最低价格会不同，一般纽约等位置的价格最低，有3.5美元/月的，可根据自己的需求来选择。推荐洛杉矶服务器，延迟较低且比较稳定。注意：2.5美元/月的套餐只提供ipv6，没有ipv4。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/debian110908.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-3.png)
 
-点击图中的系统名字，会弹出具体系统版本，推荐Debian系统
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-4.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v6.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-5.png)
 
-选择服务器套餐。根据自己的需求来选择，如果服务器位置定了，套餐不影响速度，影响流量和配置，一般用的人数少，选择低配置就够了。便宜的套餐，点击Regular Cloud Compute，选择第一个套餐，提示升级选择No Thanks。
+关闭自动备份Auto Backups，这个是收费的，每月1美元。点击它就可以省1美元，在右侧的I understand the risk前面选择勾，然后点击Disable Auto Backups即可关闭自动备份。接下来进行下一步，点击“Configure”
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v7.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-6.png)
 
-关闭自动备份Auto Backups，这个是收费的。点击它，在右侧的I understand the risk前面选择勾，然后点击Disable Auto Backups即可关闭自动备份。
+点击图中的系统名字，会弹出具体系统版本，推荐Debian
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v8.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-7.png)
 
-最后点击“Deploy Now”开始部署，等6~10分钟就差不多了。
+选择ipv4，不要选择ipv6，当同时选择ipv4和ipv6时，ipv4会被禁用。
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-8.png)
+
+最后点击“Deploy”开始部署，等3～5分钟就差不多了。
 
 **完成购买后，找到系统的密码记下来，部署服务器时需要用到。vps系统的密码获取方法如下图：**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v9.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v9.jpg)
 
 点击Products——Compute就可以看到购买的服务器列表
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v10.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v10.jpg)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v11.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v11.jpg)
 
 在服务器的最右边，点击三个点，再点击Server Details就可以看到该服务器的详细信息。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v12.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v12.jpg)
 
 服务器ip和系统密码可以看到并能复制。
 
@@ -97,9 +95,9 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 删除服务器时，先开新的服务器后再删除旧服务器，这样可以保证新服务器的ip与旧ip不同。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/ss/de2.PNG)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/ss/de2.PNG)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/ss/de5.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/ss/de5.png)
 
 ***
 
@@ -109,14 +107,14 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 xshell5:
 
-[国外云盘1下载](https://d2.freessr2.xyz/Xshell_setup_wm.exe)
+[国外云盘1下载](https://download.574981.xyz/Xshell_setup_wm.exe)
 [国外云盘2下载](https://d.dtku35.xyz/Xshell_setup_wm.exe)
 
 **注意：如果使用xshell5的过程中提示“找不到匹配的host key算法”，可以下载更高的版本来解决，比如xshell7，可在xshell中文官方网站下载**：https://www.xshell.com/zh/free-for-home-school
 
 如果你是Mac苹果电脑操作系统，更简单，无需下载xshell，系统可以直接连接VPS。直接打开Terminal终端，输入：ssh root@43.45.43.21（将45.45.43.21换成你的IP），之后输入你的密码就可以登录了（输入密码的时候屏幕上不会有显示）
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/Mac.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/Mac.png)
 
 如果不能用Mac自带的终端连接的话，直接网上搜“Mac连接SSH的软件”，有很多，然后通过软件来连接vps服务器就行，具体操作方式参考windows xshell。Mac成功连接vps后剩下的操作和windows一样。
 
@@ -126,98 +124,97 @@ xshell5:
 
 下载windows xshell软件并安装后，打开软件
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/xshell11.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/xshell11.png)
 
 选择文件，新建
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/xshell12.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/xshell12.png)
 
 随便取个名字，然后把你的服务器ip填上
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/xshell13.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/xshell13.png)
 
 连接国外ip即服务器时，软件会先后提醒你输入用户名和密码，用户名默认都是root，密码是你购买的服务器系统的密码。
 
 **如果xshell连不上服务器，没有弹出让你输入用户名和密码的输入框，表明你开到的ip是一个被墙的ip，遇到这种情况，重新开新的服务器，直到能用xshell连上为止，耐心点哦！如果同一个地区开了多台服务器还是不行的话，可以换其它地区。**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/xshell14.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/xshell14.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/ss/xshell2.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/ss/xshell2.png)
 
 连接成功后，会出现如上图所示，之后就可以复制粘贴代码部署了。
 
-**Ubuntu 16+ / Debian 8+ 系统 v2ray一键部署管理脚本**（ps：如果这个脚本不好用，教程末尾还有一键搭建多个协议节点脚本）
-
-安装命令：
+一键安装sing-box脚本，开箱即用 18 个节点（直连 9 + WARP 9），含端口一键切换、BBR 加速、分享链接导出等。支持系统：Debian 11+ / Ubuntu 20.04+ / CentOS Stream 9+ / Rocky 9+ / AlmaLinux 9+ / Fedora 38+ / Arch(rolling) / openSUSE Leap 15.4+，已在[Vultr](https://www.vultr.com/?ref=7048874) 上测试通过。脚本地址：[Alvin9999-newpac/Sing-Box-Plus](https://github.com/Alvin9999-newpac/Sing-Box-Plus)
 
 ```bash
-source <(curl -sL https://multi.netlify.app/v2ray.sh) --zh
+wget -O sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac/Sing-Box-Plus/main/sing-box-plus.sh && chmod +x sing-box-plus.sh && bash sing-box-plus.sh
 ```
 
-升级命令(保留配置文件更新)：
+或者
 
 ```bash
-source <(curl -sL https://multi.netlify.app/v2ray.sh) -k
+curl -fsSL -o sing-box-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac/Sing-Box-Plus/main/sing-box-plus.sh  && chmod +x sing-box-plus.sh && bash sing-box-plus.sh
 ```
 
-卸载命令：
+> 安装完成后，输入 bash sing-box-plus.sh 可进入管理页面。
 
-```bash
-source <(curl -sL https://multi.netlify.app/v2ray.sh) --remove
-```
-
-> 如果输入安装命令后提示curl: command not found，那是因为服务器系统没有自带curl命令，安装一下curl。
-
-> CentOS系统安装curl命令：yum install -y curl   
-
-> Debian/Ubuntu系统安装curl命令：apt-get install -y curl
-
-> 安装完成后，输入v2ray可进入管理页面。脚本来自[Jrohy/multi-v2ray](https://github.com/Jrohy/multi-v2ray)。
-
+> 如果安装过其它 sing-box 脚本，请先卸载。
 
 ***
 
 **脚本演示**
 
-复制上面安装命令代码到VPS服务器里，复制代码用鼠标右键的复制，然后在vps里面右键粘贴进去，因为ctrl+c和ctrl+v无效。接着输入数字1来安装。安装完成后，如果想修改、查看配置等，可以输入v2ray进行管理页面，不用重复安装脚本。
+复制上面安装命令代码到VPS服务器里，复制代码用鼠标右键的复制，然后在vps里面右键粘贴进去，因为ctrl+c和ctrl+v无效。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/v2ray/v2ray-2-1.PNG)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-1.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/v2ray/v2ray-2-2.PNG)
+复制脚本后，按回车键。
 
-安装速度很快，安装结束后默认有个kcp协议帐号，如果不想用kcp协议，可以输入v2ray管理页面来进行传输方式的更改。（推荐websocket协议）
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-2.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/v2ray/v2ray-2-3.PNG)
+出现管理界面后，输入数字 1 来安装脚本，按回车键。脚本全自动安装。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/v2ray/v2ray-2-4.PNG)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-3.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2ray-cs.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-4.png)
 
-安装成功后会出现“multi-v2ray install success!”字样。
+## ✨ 默认部署内容（18 个节点）
 
-***
+**直连 9：**
 
-**如果选择的是CentOS系统，还需要关闭vps防火墙来开放端口，相关命令如下：**
+* VLESS Reality（Vision 流）
+* VLESS gRPC Reality
+* Trojan Reality
+* VMess WS
+* Hysteria2（直连证书）
+* Hysteria2 + OBFS(salamander)
+* Shadowsocks 2022（2022-blake3-aes-256-gcm）
+* Shadowsocks（aes-256-gcm）
+* TUIC v5（ALPN h3，自签证书）
 
-**查看防火墙状态命令**：
-```bash
-firewall-cmd --state
-```
-**停止firewall命令**：
-```bash
-systemctl stop firewalld.service
-```
-**禁止firewall开机启动命令**：
-```bash
-systemctl disable firewalld.service
-```
+​**WARP 9：**（同上 9 种，出站经 Cloudflare WARP）
+
+> WARP 出站更利于流媒体解锁与回程质量。
+
+用鼠标复制所有节点链接一键导入到软件中。以v2ray为例，导入后界面：
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-5.png)
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-sing-box-6.png)
+
+脚本还有其它功能：查看分享链接、一键更换所有端口 、一键开启 BBR。可以输入数字 5 来启动 BBR 加速，这样就不用单独部署 BBR 加速脚本。
+
 
 ***
 
 
 **第三步：一键加速VPS服务器**
 
-五合一的TCP网络加速脚本，包括了BBR原版、BBR魔改版、暴力BBR魔改版、BBR plus（首选）、Lotsever(锐速)安装脚本。可用于KVMXen架构，不兼容OpenVZ（OVZ）。支持Centos 6+ / Debian 7+ / Ubuntu 14+，BBR魔改版不支持Debian 8。
+五合一的TCP网络加速脚本，包括了BBR原版（首选）、BBR Plus、BBR魔改版、暴力BBR魔改版、LotServer(锐速)安装脚本。可用于KVMXen架构，不兼容OpenVZ（OVZ）。支持Centos 6+ / Debian 7+ / Ubuntu 14+，BBR魔改版不支持Debian 8。
+
+👉 强烈推荐使用 BBR 原版加速：最稳定——谷歌官方维护，速度不错；最省心——Debian 9+ / Ubuntu 18.04+  系统无需更换内核；最安全——避免因魔改内核导致 VPS 无法启动。
+
+⚠️ 其他版本（BBR Plus / 魔改 / 暴力魔改 / 锐速）需要更换或指定内核，风险较高，不推荐新手使用。
 
 ***
 
@@ -226,87 +223,80 @@ wget -N --no-check-certificate "https://raw.githubusercontent.com/chiakge/Linux-
 chmod +x tcp.sh
 ./tcp.sh
 ```
-
-
 ***
 
-> 如果提示 wget: command not found 的错误，这是你的系统精简的太干净了，wget都没有安装，所以需要安装wget。CentOS系统安装wget命令： yum install -y wget Debian/Ubuntu系统安装wget命令：apt-get install -y wget
+> 如果提示 wget: command not found 的错误，这是你的系统精简的太干净了，wget都没有安装，所以需要安装wget。CentOS系统安装wget命令: yum install -y wget Debian/Ubuntu系统安装wget命令:apt-get install -y wget
 
 安装完成后，脚本管理命令为：./tcp.sh
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/vultr/newbbr1.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-bbr-1.png)
 
-操作方法：先安装内核，重启vps让内核生效，再启动对应的加速即可。数字1的BBR/BBR魔改内核对应数字4、5、6的BBR加速、BBR魔改加速和暴力BBR魔改版加速。数字2的BBRplus内核对应数字7的BBRplus加速。数字3的锐速加速内核对应数字8的锐速加速。（如果服务器系统是Debian或Ubuntu系统，可不用安装内核，直接输入数字4启动bbr原版加速。）
+如果服务器系统是 **Debian** 或 **Ubuntu**，可不用安装内核，直接输入 **数字 4** 启动 **BBR 原版加速**。  
 
-以安装暴力BBR魔改版加速为例，我们先安装对应的内核，输入数字1
+如果服务器系统是 **CentOS**，先输入 **数字 1** 安装内核，然后 **重启服务器** 后，输入 **数字 4** 启动 **BBR 原版加速**。  
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/vultr/newbbr2.jpg)
+**BBR 原版**由谷歌官方开发，稳定且速度表现优秀，推荐使用。  
 
-内核安装完成后，输入y进行重启，重启才能让内核生效
+⚠️ **注意**：对于其他第三方内核，可能存在与系统不兼容的情况，安装后有概率导致 **VPS 无法正常启动**，需谨慎，因此 **不推荐**。 如果VPS 无法正常启动需要重装系统或者开新服务器。
 
+以安装**BBR 原版加速**为例，输入加速脚本，选择数字4
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/vultr/newbbr3.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-bbr-1.png)
 
-重启完成后，输入数字6来启动暴力BBR魔改版加速
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-bbr-2.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/vultr/newbbr4.jpg)
-
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/vultr/newbbr5.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025-bbr-3.png)
 
 输入./tcp.sh查看最终是否启动成功。
 
-如果想换一个加速，输入数字9进行卸载加速，然后进行同样的操作，安装内核再安装对应内核的加速即可。
+如果想换一个加速，输入数字9进行卸载加速，然后进行操作。
 
 **注意：如果在安装内核环节出现这样一张图，注意选择NO**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/vultr/newbbr6.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/vultr/newbbr6.jpg)
 
 ***
 
-【v2ray客户端下载及使用方法】
+【v2rayN客户端下载及使用方法】
 
-**客户端使用教程：[v2ray各平台图文使用教程](https://github.com/Alvin9999/new-pac/wiki/v2ray%E5%90%84%E5%B9%B3%E5%8F%B0%E5%9B%BE%E6%96%87%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)**
+**客户端使用教程：[v2ray各平台图文使用教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/v2ray%E5%90%84%E5%B9%B3%E5%8F%B0%E5%9B%BE%E6%96%87%E4%BD%BF%E7%94%A8%E6%95%99%E7%A8%8B)**
 
-**软件代理设置**：
+Windows/Mac/Linux v2rayN 客户端：[Github最新版下载](https://github.com/2dust/v2rayN/releases/latest) (下载带core的文件) [Github镜像下载](https://jgithub.xyz/2dust/v2rayN/releases/latest) (下载带core的文件)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2rayn001.jpg)
+以Windows v2rayN客户端为例：
 
-windows系统打开v2rayN软件，在软件的底部，选择“自动配置系统代理”，路由可选择“全局(Global)”。全局(Global)模式：所有网站通过节点服务器代理上网。
+第一步，按照地址下载v2rayN客户端，然后解压缩后打开应用：
 
-***
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202500.png)
 
-**常见问题参考解决方法**：
+第二步，在任务栏中找到蓝色V图标，单击打开客户端界面，点击配置项
 
-**1、账号无法使用，可能原因：vps防火墙端口没有放开或者本地电脑防火墙、杀毒软件阻挡代理软件。**
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202501.png)
 
-关闭vps防火墙即可开放所有端口，本地电脑防火墙和杀毒软件手动关闭即可。
+复制节点一键导入链接后，选择“从剪贴板导入分享链接”即可把节点导入到软件中，可以批量导入。或者也可以通过扫描二维码或者手动填写节点信息。
 
-查看防火墙状态命令：firewall-cmd --state  
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202504.png)
 
-停止firewall命令：systemctl stop firewalld.service
+第三步，鼠标选中想用的节点，右键选择设置为活动服务器或者按回车，启用该节点。软件每次只能启用1个节点。
 
-禁止firewall开机启动命令：systemctl disable firewalld.service
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202502.png)
 
+第四步，在任务栏中右键v2rayN图标，选择“自动配置系统代理”，之后就可以通过浏览器翻墙了。
 
-**2、搭建的账号之前能用，突然不能用了，怎么解决？**
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202503.png)
 
-如果ip不能ping通，xshell不能直接连接vps服务器，说明ip被墙了，需要开新服务器换ip。
+如果路由选择“绕过大陆”，那么国内没有被封的网址就没有被代理。如果路由选择“全局”，那么所有的网址都会被代理。
 
-如果ip能ping，xshell能直接连接vps服务器，说明ip没有被墙，多半是端口被封了，优先换端口。
+**快速检测节点是否有效**
 
-如果ip和端口都没问题，可以尝试来更换传输协议，比如Websocket、TCP、mKCP等，测试哪种协议最适合自己的网络环境。
+选中所有节点，选择“测试真链接”，如果延迟结果是“-1”，那么该节点不可用，反之节点可用。
 
-**3、一键搭建多个协议节点脚本，无需域名，小白专用**
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202505.png)
 
-```bash
-bash <(curl -Ls https://gitlab.com/rwkgyg/sing-box-yg/raw/main/sb.sh)
-```
-脚本快捷管理命令：sb
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202506.png)
 
-[图文教程](https://github.com/Alvin9999/new-pac/wiki/%E4%B8%80%E9%94%AE%E6%90%AD%E5%BB%BA%E5%A4%9A%E4%B8%AA%E5%8D%8F%E8%AE%AE%E8%8A%82%E7%82%B9%E6%95%99%E7%A8%8B)
-
-无需域名。按照提示操作安装，全程回车即可。搭建好后默认有4个节点，1个vless-reality-vision节点，1个vmess-ws节点，1个Hysteria-2节点，1个Tuic-v5节点。
 
 ***
+
 
 有问题可以发邮件至海外邮箱rebeccalane27@gmail.com

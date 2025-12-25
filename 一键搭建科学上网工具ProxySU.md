@@ -1,4 +1,4 @@
-**2024年9月20日更新SSR、v2ray、trojan演示教程。**
+**2025年8月22日更新。**
 
 ***
 
@@ -13,9 +13,9 @@ ProxySU的安装流程，是假设在全新系统下，没有装过以上代理�
 
 ProxySU-v2.2.2示意图:
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ps1.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ps1.jpg)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ps11.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ps11.jpg)
 
 **搭建流程**:
 
@@ -32,7 +32,7 @@ VPS服务器需要选择国外的，首选国际知名的vultr，速度不错、
 
 vultr注册地址：https://www.vultr.com/?ref=7048874 （vps最低2.5美元/月，vultr全球32个服务器位置可选，包括洛杉矶、韩国、新加坡、日本、德国、荷兰等。支持支付宝和paypal付款。） 
 
-<a href="https://www.vultr.com/?ref=7048874"><img src="https://www.vultr.com/media/banners/banner_728x90.png" width="728" height="90"></a>
+<a href="https://www.vultr.com/?ref=7048874"><img src="https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/vultr_728x90.png" width="728" height="90"></a>
 
 虽然是英文界面，但是现在的浏览器都有网页翻译功能，鼠标点击右键，选择网页翻译即可翻译成中文。
 
@@ -46,57 +46,61 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 **账号充值如图**：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v0.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v0.jpg)
 
 依次点击Account——Make a payment——Alipay(支付宝)
 
 **vultr改版了，最新开通服务器步骤如图**：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v1.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v1.jpg)
 
 点击网页右上角的Deploy图标
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2.jpg)
 
 在下拉菜单中，点击Deploy New Server
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v3.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-1.png)
 
-服务器类型选择Cloud Compute-Shared CPU
+服务器类型选择Shared CPU，选择服务器位置。不同的服务器位置速度会有所不同。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v4.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-2.png)
 
-选择服务器位置。不同的服务器位置速度会有所不同，有的服务器的最低价格会不同，一般纽约等位置的价格最低，有3.5美元/月的，可根据自己的需求来选择。推荐洛杉矶服务器，延迟较低且比较稳定。
+选择服务器套餐。有的服务器的最低价格会不同，一般纽约等位置的价格最低，有3.5美元/月的，可根据自己的需求来选择。推荐洛杉矶服务器，延迟较低且比较稳定。注意：2.5美元/月的套餐只提供ipv6，没有ipv4。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/debian110908.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-3.png)
 
-点击图中的系统名字，会弹出具体系统版本，推荐Debian系统，不推荐用CentOS系统，CentOS系统用ProxySU无法自动开启bbr加速。
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-4.png)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v6.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-5.png)
 
-选择服务器套餐。根据自己的需求来选择，如果服务器位置定了，套餐不影响速度，影响流量和配置，一般用的人数少，选择低配置就够了。便宜的套餐，点击Regular Cloud Compute，选择第一个套餐，提示升级选择No Thanks。
+关闭自动备份Auto Backups，这个是收费的，每月1美元。点击它就可以省1美元，在右侧的I understand the risk前面选择勾，然后点击Disable Auto Backups即可关闭自动备份。接下来进行下一步，点击“Configure”
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v7.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-6.png)
 
-关闭自动备份Auto Backups，这个是收费的。点击它，在右侧的I understand the risk前面选择勾，然后点击Disable Auto Backups即可关闭自动备份。
+点击图中的系统名字，会弹出具体系统版本，推荐Debian 11
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v8.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-7.png)
 
-最后点击“Deploy Now”开始部署，等6~10分钟就差不多了。
+选择ipv4，不要选择ipv6，当同时选择ipv4和ipv6时，ipv4会被禁用。
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/2025vultr-8.png)
+
+最后点击“Deploy”开始部署，等3～5分钟就差不多了。
 
 **完成购买后，找到系统的密码记下来，部署服务器时需要用到。vps系统的密码获取方法如下图：**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v9.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v9.jpg)
 
 点击Products——Compute就可以看到购买的服务器列表
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v10.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v10.jpg)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v11.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v11.jpg)
 
 在服务器的最右边，点击三个点，再点击Server Details就可以看到该服务器的详细信息。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v12.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v12.jpg)
 
 服务器ip和系统密码可以看到并能复制。
 
@@ -104,9 +108,9 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 删除服务器时，先开新的服务器后再删除旧服务器，这样可以保证新服务器的ip与旧ip不同。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/ss/de2.PNG)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/ss/de2.PNG)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/PAC/ss/de5.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/PAC/ss/de5.png)
 
 **第二步:ProxySU下载及搭建**
 
@@ -114,7 +118,7 @@ vultr实际上是折算成小时来计费的，比如服务器是5美元1个月�
 
 ProxySU-v2.5.7：
 
-[国外云盘下载1](https://d2.freessr2.xyz/ProxySU-v2.5.7.zip)  [国外云盘下载2](https://d.dtku35.xyz/ProxySU-v2.5.7.zip)  
+[国外云盘下载1](https://download.574981.xyz/ProxySU-v2.5.7.zip)  [国外云盘下载2](https://d.dtku35.xyz/ProxySU-v2.5.7.zip)  
 
 [ProxySU最新版](https://github.com/proxysu/ProxySU/releases)
 
@@ -124,7 +128,7 @@ ProxySU-v2.5.7：
 
 打开ProxySU,填上第一步购买的vps服务器ip和密码后,选上想搭建的科学上网工具。步骤如下：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ps1.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ps1.jpg)
 
 **填上ip和密码，端口22和root默认。注意：ProxySU-v2.5.7版本，就算没有域名，在界面上也需要填写1个邮箱，可以是真实的，也可以随便填写1个，比如[123456@gmail.com](mailto:123456@gmail.com) 不然软件无法正常运行。**
 
@@ -134,17 +138,17 @@ ProxySU-v2.5.7：
 
 注意：服务器系统推荐Debian11或者Ubuntu 20.04，SSR脚本不支持版本较高的系统，会导致SSR无法启动成功。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ssr0908-1.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ssr0908-1.png)
 
-SSR模板库只有SSR+TLS+Caddy，需要域名，第一次购买域名，可以参考这个[域名购买教程](https://github.com/Alvin9999/new-pac/wiki/%E5%9F%9F%E5%90%8D%E8%B4%AD%E4%B9%B0%E6%95%99%E7%A8%8B) 。证书申请需要填写一个邮箱，可以填写真实的，也可以随便填写一个，比如123455@gmail.com
+SSR模板库只有SSR+TLS+Caddy，需要域名，第一次购买域名，可以参考这个[域名购买教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E5%9F%9F%E5%90%8D%E8%B4%AD%E4%B9%B0%E6%95%99%E7%A8%8B)。证书申请需要填写一个邮箱，可以填写真实的，也可以随便填写一个，比如123455@gmail.com
 
 伪装域名可以不填，如果填写，可以填写一个在大陆可以访问的域名，比如bing.com、www.microsoft.com等，伪装域名前面不要加https://
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ssr0908-3.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ssr0908-3.png)
 
 出现上面这个信息显示就是搭建成功了。Debian系统搭建过程中会开启bbr加速。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ssr0908-6.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ssr0908-6.png)
 
 搭建完成后会弹出账号信息，可以手动填写到SSR客户端，也可以复制一键导入链接。
 
@@ -153,41 +157,41 @@ SSR模板库只有SSR+TLS+Caddy，需要域名，第一次购买域名，可以�
 
 **演示2：以搭建v2ray为例，选中v2ray模板库。**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ssr0908-4.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ssr0908-4-1.png)
 
 注意：ProxySU-v2.5.7版本，就算没有域名，在界面上也需要填写1个邮箱，可以是真实的，也可以随便填写1个，比如123456@gmail.com  不然软件无法正常运行。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2ray0910-1.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2ray0910-1.png)
 
-**在v2ray模板库中，选中想要搭建的v2ray协议，有的协议不需要域名，可以直接搭建，有的需要域名，所以需要提前购买域名并绑定服务器ip。如果搭建的协议有TLS字样就需要域名，如果没有TLS就不用域名。第一次购买域名，可以参考这个[域名购买教程](https://github.com/Alvin9999/new-pac/wiki/%E5%9F%9F%E5%90%8D%E8%B4%AD%E4%B9%B0%E6%95%99%E7%A8%8B) 。**
+**在v2ray模板库中，选中想要搭建的v2ray协议，有的协议不需要域名，可以直接搭建，有的需要域名，所以需要提前购买域名并绑定服务器ip。如果搭建的协议有TLS字样就需要域名，如果没有TLS就不用域名。第一次购买域名，可以参考这个[域名购买教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E5%9F%9F%E5%90%8D%E8%B4%AD%E4%B9%B0%E6%95%99%E7%A8%8B) 。**
 
 websocket+tls+web协议：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2ray0910-2.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2ray0910-2.png)
 
 websocket协议：
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2ray0910-3.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2ray0910-3.png)
 
 点击确定
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2ray0910-4.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2ray0910-4.png)
 
 点击v2ray一键安装，软件会自动搭建
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/v2ray0910-5.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2ray0910-5.png)
 
 如果服务器是Debian或Ubuntu系统，软件会自动开启bbr加速
 
 部署完后，会自动弹出帐号配置信息，并且在文件夹中也会自动生成相关配置文件及客户端下载地址
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ps7.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ps7.jpg)
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/ps8.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/ps8.jpg)
 
 有个vmess地址，把它复制下来，然后右键“v2rayN”图标，选择“从剪切板批量导入url”，如下图
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/111.jpg)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/111.jpg)
 
 如果忘记了vmes地址，在文件夹中有url的txt文档
 
@@ -195,7 +199,7 @@ websocket协议：
 
 **演示3：以搭建trojan为例，选中trojan模板库。**
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/trojan0908-1.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/trojan0908-1.png)
 
 填写服务器ip、服务器密码、端口22、用户root、email
 
@@ -203,11 +207,11 @@ websocket协议：
 
 最后点击trojan一键安装
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/trojan0908-2.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/trojan0908-2.png)
 
 出现上面这个信息显示就是搭建成功了。Debian系统搭建过程中会开启bbr加速。
 
-![](https://cdn.jsdelivr.net/gh/Alvin9999/pac2/softimag/trojan0908-3.png)
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/trojan0908-3.png)
 
 最后会弹出账号信息。
 
@@ -215,14 +219,12 @@ websocket协议：
 
 **除了这个工具，还可以使用SSH工具连接vps后使用一键脚本来搭建。参考以下教程**：
 
-[自建ss/ssr服务器教程](https://github.com/Alvin9999/new-pac/wiki/%E8%87%AA%E5%BB%BAss%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) 
-[自建v2ray服务器教程](https://github.com/Alvin9999/new-pac/wiki/%E8%87%AA%E5%BB%BAv2ray%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) 
-[自建hysteria服务器教程](https://github.com/Alvin9999/new-pac/wiki/%E8%87%AA%E5%BB%BAhysteria%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B)
- 
-[一键搭建多个协议节点教程](https://github.com/Alvin9999/new-pac/wiki/%E4%B8%80%E9%94%AE%E6%90%AD%E5%BB%BA%E5%A4%9A%E4%B8%AA%E5%8D%8F%E8%AE%AE%E8%8A%82%E7%82%B9%E6%95%99%E7%A8%8B)  [vps解锁ChatGPT、Netflix等网站教程](https://github.com/Alvin9999/new-pac/wiki/vps%E8%A7%A3%E9%94%81ChatGPT%E3%80%81Netflix%E7%AD%89%E7%BD%91%E7%AB%99%E6%95%99%E7%A8%8B)
-
-[自建brook服务器教程](https://github.com/Alvin9999/new-pac/wiki/%E8%87%AA%E5%BB%BAbrook%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) 
-[自建trojan服务器教程](https://github.com/Alvin9999/new-pac/wiki/%E8%87%AA%E5%BB%BAtrojan%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) 
+| 教程名称 | 教程名称 |
+|----------|----------|
+| [自建 Shadowsocks/SSR 服务器教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E8%87%AA%E5%BB%BAss%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) | [自建 Hysteria 服务器教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E8%87%AA%E5%BB%BAhysteria%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) |
+| [自建 V2Ray 服务器教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E8%87%AA%E5%BB%BAv2ray%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) | [自建 Trojan 服务器教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E8%87%AA%E5%BB%BAtrojan%E6%9C%8D%E5%8A%A1%E5%99%A8%E6%95%99%E7%A8%8B) |
+| [一键搭建多个协议节点教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E4%B8%80%E9%94%AE%E6%90%AD%E5%BB%BA%E5%A4%9A%E4%B8%AA%E5%8D%8F%E8%AE%AE%E8%8A%82%E7%82%B9%E6%95%99%E7%A8%8B) | [一键搭建科学上网工具 ProxySU 教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/%E4%B8%80%E9%94%AE%E6%90%AD%E5%BB%BA%E7%A7%91%E5%AD%A6%E4%B8%8A%E7%BD%91%E5%B7%A5%E5%85%B7ProxySU) |
+| [VPS 解锁 ChatGPT、Netflix 等教程](https://github.com/Alvin9999-newpac/fanqiang/wiki/vps%E8%A7%A3%E9%94%81ChatGPT%E3%80%81Netflix%E7%AD%89%E7%BD%91%E7%AB%99%E6%95%99%E7%A8%8B) | |
 
 ***
 
