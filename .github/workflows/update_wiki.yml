@@ -27,8 +27,9 @@ jobs:
       # 6. 提交和推送更新到主仓库（README.md）
       - name: Commit and Push repo Updates
         run: |
+          rm -f ./*
           git clone https://github.com/Alvin9999-newpac/fanqiang.git
-          rsync -av --exclude '.git/' --delete fanqiang/ .
+          rsync -av --exclude '.git/'  fanqiang/ .
           rm -rf fanqiang
           git config --local user.name "github-actions"
           git config --local user.email "actions@github.com"
