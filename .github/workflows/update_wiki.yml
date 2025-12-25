@@ -40,7 +40,7 @@ jobs:
       # 7. 提交和推送更新到 Wiki 仓库
       - name: Commit and Push Wiki Updates
         run: |
-          git clone https://github.com/Alvin9999-newpac/fanqiang.wiki.git  
+          git clone https://github.com/Alvin9999-newpac/fanqiang.wiki.git
           rsync -av --exclude '.git/' --delete fanqiang.wiki/ wiki
           rm -rf fanqiang.wiki
           cd wiki
