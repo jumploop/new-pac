@@ -22,6 +22,7 @@ jobs:
       # 1. 提交和推送更新到主仓库（README.md）
       - name: Commit and Push repo Updates
         run: |
+          [ -d wiki ] && rm -rf wiki
           find . -maxdepth 1 -type f -exec rm -f {} +
           git clone https://github.com/Alvin9999-newpac/fanqiang.git
           rsync -av --exclude '.git/'  fanqiang/ .
