@@ -20,7 +20,7 @@ jobs:
           fetch-depth: 0
 
       # 2. 克隆 Wiki 仓库到 wiki 目录
-      - name: list file and dir
+      - name: clone wiki, list file and dir
         run: |
           git clone https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/jumploop/new-pac.wiki.git wiki
           ls -lah
@@ -50,3 +50,4 @@ jobs:
           git add .
           git commit -m "Auto-update Wiki: Increment domains and update timestamp" || echo "No changes to commit"
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/jumploop/new-pac.wiki.git
+          rm -rf wiki
