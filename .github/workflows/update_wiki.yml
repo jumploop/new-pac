@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write  # 允许写入仓库内容
-  workflows: write # 允许更新工作流文件
 
 jobs:
   update-wiki-readme:
