@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v2.4.6
+#  Version: v2.4.7
 #  author：Alvin9999
-#  Repo: https://github.com/Alvin9999/Sing-Box-Plus
+#  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
 
 set -Eeuo pipefail
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v2.4.6"
+SCRIPT_VERSION="v2.4.7"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -365,12 +365,29 @@ safe_source_env(){ # 安全 source，忽略不存在文件
   set -u
 }
 
-get_ip(){ # 多源获取公网IP
+get_ip4(){ # 多源获取公网 IPv4
   local ip
-  ip=$(curl -fsSL ipv4.icanhazip.com || true)
-  [[ -z "$ip" ]] && ip=$(curl -fsSL ifconfig.me || true)
-  [[ -z "$ip" ]] && ip=$(curl -fsSL ip.sb || true)
+  ip=$(curl -4 -fsSL ipv4.icanhazip.com 2>/dev/null || true)
+  [[ -z "$ip" ]] && ip=$(curl -4 -fsSL ifconfig.me 2>/dev/null || true)
+  [[ -z "$ip" ]] && ip=$(curl -4 -fsSL ip.sb 2>/dev/null || true)
   echo "${ip:-127.0.0.1}"
+}
+
+get_ip6(){ # 多源获取公网 IPv6（无 IPv6 则返回空）
+  local ip
+  ip=$(curl -6 -fsSL ipv6.icanhazip.com 2>/dev/null || true)
+  [[ -z "$ip" ]] && ip=$(curl -6 -fsSL ifconfig.me 2>/dev/null || true)
+  [[ -z "$ip" ]] && ip=$(curl -6 -fsSL ip.sb 2>/dev/null || true)
+  echo "${ip:-}"
+}
+
+# 兼容旧调用：默认返回 IPv4
+get_ip(){ get_ip4; }
+
+# URI/分享链接里：IPv6 需要用 [addr] 包起来
+fmt_host_for_uri(){
+  local ip="$1"
+  [[ "$ip" == *:* ]] && printf '[%s]' "$ip" || printf '%s' "$ip"
 }
 
 is_uuid(){ [[ "$1" =~ ^[0-9a-fA-F-]{36}$ ]]; }
@@ -746,15 +763,15 @@ write_config(){
   --arg W4 "${WARP_ADDRESS_V4:-}" --arg W6 "${WARP_ADDRESS_V6:-}" \
   --argjson WR1 "${WARP_RESERVED_1:-0}" --argjson WR2 "${WARP_RESERVED_2:-0}" --argjson WR3 "${WARP_RESERVED_3:-0}" \
   '
-  def inbound_vless($port): {type:"vless", listen:"0.0.0.0", listen_port:$port, users:[{uuid:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
-  def inbound_vless_flow($port): {type:"vless", listen:"0.0.0.0", listen_port:$port, users:[{uuid:$UID, flow:"xtls-rprx-vision"}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
-  def inbound_trojan($port): {type:"trojan", listen:"0.0.0.0", listen_port:$port, users:[{password:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
-  def inbound_hy2($port): {type:"hysteria2", listen:"0.0.0.0", listen_port:$port, users:[{name:"hy2", password:$HY2}], tls:{enabled:true, certificate_path:$CRT, key_path:$KEY}};
-  def inbound_vmess_ws($port): {type:"vmess", listen:"0.0.0.0", listen_port:$port, users:[{uuid:$UID}], transport:{type:"ws", path:$VMWS}};
-  def inbound_hy2_obfs($port): {type:"hysteria2", listen:"0.0.0.0", listen_port:$port, users:[{name:"hy2", password:$HY22}], obfs:{type:"salamander", password:$HY2O}, tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
-  def inbound_ss2022($port): {type:"shadowsocks", listen:"0.0.0.0", listen_port:$port, method:"2022-blake3-aes-256-gcm", password:$SS2022};
-  def inbound_ss($port): {type:"shadowsocks", listen:"0.0.0.0", listen_port:$port, method:"aes-256-gcm", password:$SSPWD};
-  def inbound_tuic($port): {type:"tuic", listen:"0.0.0.0", listen_port:$port, users:[{uuid:$TUICUUID, password:$TUICPWD}], congestion_control:"bbr", tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
+  def inbound_vless($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
+  def inbound_vless_flow($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID, flow:"xtls-rprx-vision"}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
+  def inbound_trojan($port): {type:"trojan", listen:"::", listen_port:$port, users:[{password:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
+  def inbound_hy2($port): {type:"hysteria2", listen:"::", listen_port:$port, users:[{name:"hy2", password:$HY2}], tls:{enabled:true, certificate_path:$CRT, key_path:$KEY}};
+  def inbound_vmess_ws($port): {type:"vmess", listen:"::", listen_port:$port, users:[{uuid:$UID}], transport:{type:"ws", path:$VMWS}};
+  def inbound_hy2_obfs($port): {type:"hysteria2", listen:"::", listen_port:$port, users:[{name:"hy2", password:$HY22}], obfs:{type:"salamander", password:$HY2O}, tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
+  def inbound_ss2022($port): {type:"shadowsocks", listen:"::", listen_port:$port, method:"2022-blake3-aes-256-gcm", password:$SS2022};
+  def inbound_ss($port): {type:"shadowsocks", listen:"::", listen_port:$port, method:"aes-256-gcm", password:$SSPWD};
+  def inbound_tuic($port): {type:"tuic", listen:"::", listen_port:$port, users:[{uuid:$TUICUUID, password:$TUICPWD}], congestion_control:"bbr", tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
 
   def warp_outbound:
     {type:"wireguard", tag:"warp",
@@ -842,37 +859,48 @@ open_firewall(){
 # ===== 分享链接（分组输出 + 提示） =====
 print_links_grouped(){
   load_env; load_creds; load_ports
-  local ip; ip=$(get_ip)
+  local mode="${1:-4}" ip host
+  if [[ "$mode" == "6" ]]; then
+    ip="$(get_ip6)"
+    if [[ -z "$ip" ]]; then
+      warn "未检测到公网 IPv6，自动回退到 IPv4"
+      ip="$(get_ip4)"
+      mode="4"
+    fi
+  else
+    ip="$(get_ip4)"
+  fi
+  host="$(fmt_host_for_uri "$ip")"
   local links_direct=() links_warp=()
   # 直连9
-  links_direct+=("vless://${UUID}@${ip}:${PORT_VLESSR}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality")
-  links_direct+=("vless://${UUID}@${ip}:${PORT_VLESS_GRPCR}?encryption=none&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality")
-  links_direct+=("trojan://${UUID}@${ip}:${PORT_TROJANR}?security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality")
-  links_direct+=("hy2://$(urlenc "${HY2_PWD}")@${ip}:${PORT_HY2}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#hysteria2")
+  links_direct+=("vless://${UUID}@${host}:${PORT_VLESSR}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality")
+  links_direct+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR}?encryption=none&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality")
+  links_direct+=("trojan://${UUID}@${host}:${PORT_TROJANR}?security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality")
+  links_direct+=("hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#hysteria2")
   local VMESS_JSON; VMESS_JSON=$(cat <<JSON
 {"v":"2","ps":"vmess-ws","add":"${ip}","port":"${PORT_VMESS_WS}","id":"${UUID}","aid":"0","net":"ws","type":"none","host":"","path":"${VMESS_WS_PATH}","tls":""}
 JSON
   )
   links_direct+=("vmess://$(printf "%s" "$VMESS_JSON" | b64enc)")
-  links_direct+=("hy2://$(urlenc "${HY2_PWD2}")@${ip}:${PORT_HY2_OBFS}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")#hysteria2-obfs")
-  links_direct+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${ip}:${PORT_SS2022}#ss2022")
-  links_direct+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${ip}:${PORT_SS}#ss")
-  links_direct+=("tuic://${UUID}:$(urlenc "${UUID}")@${ip}:${PORT_TUIC}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5")
+  links_direct+=("hy2://$(urlenc "${HY2_PWD2}")@${host}:${PORT_HY2_OBFS}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")#hysteria2-obfs")
+  links_direct+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${host}:${PORT_SS2022}#ss2022")
+  links_direct+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS}#ss")
+  links_direct+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5")
 
   # WARP 9
-  links_warp+=("vless://${UUID}@${ip}:${PORT_VLESSR_W}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality-warp")
-  links_warp+=("vless://${UUID}@${ip}:${PORT_VLESS_GRPCR_W}?encryption=none&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality-warp")
-  links_warp+=("trojan://${UUID}@${ip}:${PORT_TROJANR_W}?security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality-warp")
-  links_warp+=("hy2://$(urlenc "${HY2_PWD}")@${ip}:${PORT_HY2_W}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#hysteria2-warp")
+  links_warp+=("vless://${UUID}@${host}:${PORT_VLESSR_W}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality-warp")
+  links_warp+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR_W}?encryption=none&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality-warp")
+  links_warp+=("trojan://${UUID}@${host}:${PORT_TROJANR_W}?security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality-warp")
+  links_warp+=("hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#hysteria2-warp")
   local VMESS_JSON_W; VMESS_JSON_W=$(cat <<JSON
 {"v":"2","ps":"vmess-ws-warp","add":"${ip}","port":"${PORT_VMESS_WS_W}","id":"${UUID}","aid":"0","net":"ws","type":"none","host":"","path":"${VMESS_WS_PATH}","tls":""}
 JSON
   )
   links_warp+=("vmess://$(printf "%s" "$VMESS_JSON_W" | b64enc)")
-  links_warp+=("hy2://$(urlenc "${HY2_PWD2}")@${ip}:${PORT_HY2_OBFS_W}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")#hysteria2-obfs-warp")
-  links_warp+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${ip}:${PORT_SS2022_W}#ss2022-warp")
-  links_warp+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${ip}:${PORT_SS_W}#ss-warp")
-  links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${ip}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
+  links_warp+=("hy2://$(urlenc "${HY2_PWD2}")@${host}:${PORT_HY2_OBFS_W}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")#hysteria2-obfs-warp")
+  links_warp+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${host}:${PORT_SS2022_W}#ss2022-warp")
+  links_warp+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS_W}#ss-warp")
+  links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
 
   echo -e "${C_BLUE}${C_BOLD}分享链接（18 个）${C_RESET}"
   hr
@@ -910,14 +938,15 @@ banner(){
   clear >/dev/null 2>&1 || true
   hr
   echo -e " ${C_CYAN}🚀 ${SCRIPT_NAME} ${SCRIPT_VERSION} 🚀${C_RESET}"
-  echo -e "${C_CYAN} 脚本更新地址: https://github.com/Alvin9999/Sing-Box-Plus${C_RESET}"
+  echo -e "${C_CYAN} 脚本更新地址: https://github.com/Alvin9999-newpac/Sing-Box-Plus${C_RESET}"
 
   hr
   echo -e "系统加速状态：$(bbr_state)"
   echo -e "Sing-Box 启动状态：$(sb_service_state)"
   hr
   echo -e "  ${C_BLUE}1)${C_RESET} 安装/部署（18 节点）"
-  echo -e "  ${C_GREEN}2)${C_RESET} 查看分享链接"
+  echo -e "  ${C_GREEN}2)${C_RESET} 查看分享链接（IPv4）"
+  echo -e "  ${C_GREEN}6)${C_RESET} 查看分享链接（IPv6）"
   echo -e "  ${C_GREEN}3)${C_RESET} 重启服务"
   echo -e "  ${C_GREEN}4)${C_RESET} 一键更换所有端口"
   echo -e "  ${C_GREEN}5)${C_RESET} 一键开启 BBR"
@@ -975,7 +1004,7 @@ deploy_native(){
   open_firewall
   echo; echo -e "${C_BOLD}${C_GREEN}★ 部署完成（18 节点）${C_RESET}"; echo
   # 打印链接并直接退出
-  print_links_grouped
+  print_links_grouped 4
   exit 0
 }
 
@@ -1006,8 +1035,9 @@ menu(){
   print_links_grouped
   exit 0                                          # ← 打印后直接退出
   ;;
-    
-    2) if ensure_installed_or_hint; then print_links_grouped; exit 0; fi ;;
+  2) if ensure_installed_or_hint; then print_links_grouped 4; exit 0; fi ;;
+
+  6) if ensure_installed_or_hint; then print_links_grouped 6; exit 0; fi ;;
     3) if ensure_installed_or_hint; then restart_service; fi; read -rp "回车返回..." _ || true; menu ;;
    4) if ensure_installed_or_hint; then rotate_ports; fi; menu ;;
     5) enable_bbr; read -rp "回车返回..." _ || true; menu ;;
