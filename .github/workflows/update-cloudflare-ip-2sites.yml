@@ -25,15 +25,12 @@ jobs:
       - name: Install deps
         run: |
           npm ci || npm install
-
       - name: Install Playwright browsers
         run: |
           npx playwright install --with-deps chromium
-
       - name: Update file
         run: |
           node scripts/update_cf_from_2sites.mjs
-
       - name: Commit & push if changed
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
