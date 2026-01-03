@@ -23,8 +23,8 @@ git fetch origin >> "$LOG_FILE" 2>&1
 git reset --hard origin/main >> "$LOG_FILE" 2>&1
 
 # 运行抓取脚本
-node scripts/update_cf_from_2sites.mjs >> "$LOG_FILE" 2>&1
-
+node scripts/update_cf_from_2sites.mjs >> "$LOG_FILE" 2>&1 || true
+\
 # 没变化就不提交
 if git diff --quiet "$TARGET_FILE"; then
   echo "No changes, skip commit." >> "$LOG_FILE"
