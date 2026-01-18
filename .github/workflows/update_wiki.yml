@@ -43,7 +43,7 @@ jobs:
       - name: Commit and Push Wiki Updates
         run: |
           git clone https://github.com/Alvin9999-newpac/fanqiang.wiki.git
-          rsync -av --exclude '.git/' --delete fanqiang.wiki/ wiki
+          rsync -av --exclude '.git/' --exclude '.github/' --delete fanqiang.wiki/ wiki
           rm -rf fanqiang.wiki
           cd wiki
           git config --local user.name "github-actions"
