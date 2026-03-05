@@ -1,4 +1,4 @@
-**2025年12月21日更新。**
+**2026年3月5日更新。**
 
 ***
 
@@ -295,6 +295,24 @@ Windows/Mac/Linux v2rayN 客户端：[Github最新版下载](https://github.com/
 
 ![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/v2rayn202506.png)
 
+
+***
+
+如果想搭建最新的VLESS-xhttp-Reality-enc、VLESS-xhttp-Reality等协议节点，可以用[Xray-Plus一键脚本](https://github.com/Alvin9999-newpac/Xray-Plus)。
+
+**wget 方式：**
+
+```bash
+wget -O xray-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac/Xray-Plus/main/xray-plus.sh && chmod +x xray-plus.sh && bash xray-plus.sh
+```
+
+**curl 方式：**
+
+```bash
+curl -fsSL -o xray-plus.sh https://raw.githubusercontent.com/Alvin9999-newpac/Xray-Plus/main/xray-plus.sh && chmod +x xray-plus.sh && bash xray-plus.sh
+```
+
+自动生成6个节点（VLESS-xhttp-Reality-enc、VLESS-xhttp-Reality、VLESS-tcp-Reality、VLESS-xhttp-enc、VLESS-ws-enc、VMess-ws），支持后量子加密
 
 ***
 
