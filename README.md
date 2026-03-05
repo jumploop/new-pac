@@ -6,3 +6,4 @@
 
 如果你觉得 fanqiang 项目有用，请点个赞⭐️，帮助项目更快成长！
 
+[![Star History Chart](https://api.star-history.com/svg?repos=Alvin9999-newpac/fanqiang&type=Date)](https://star-history.com/#Alvin9999-newpac/fanqiang&Date)

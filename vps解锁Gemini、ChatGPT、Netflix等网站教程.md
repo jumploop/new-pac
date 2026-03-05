@@ -1,12 +1,20 @@
-**2025年12月21日更新。**
+**2026年3月5日更新。**
 
 ***
 
-如果你的vps搭建翻墙工具后不能访问[Netflix](https://www.netflix.com)、[ChatGPT](https://chatgpt.com)等网站，比如出现Netflix无法访问页面：
+如果你的vps搭建翻墙工具后不能访问[Gemini](https://gemini.google.com/app)、[ChatGPT](https://chatgpt.com)、[Netflix](https://www.netflix.com)等网站，比如出现Gemini提示错误或Netflix无法访问页面：
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/gemini0.png)
 
 ![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/netflix1.png)
 
 （如果访问YouTube出现需要登录账号才能观看视频，也可以用此方法来解决）
+
+解锁后，访问Gemini
+
+![](https://cdn.jsdelivr.net/gh/Alvin9999-newpac/pac2/softimag/gemini1.png)
+
+测试服务器为[vultr](https://www.vultr.com/?ref=7048874)洛杉矶服务器
 
 ***
 

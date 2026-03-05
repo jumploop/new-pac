@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.5.2
+#  Version: v3.9.9
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -87,9 +87,9 @@ sbp_pm_refresh() {
   case "$PM" in
     apt)
       apt_allow_release_change
-      sed -i 's#^deb http://#deb https://#' /etc/apt/sources.list 2>/dev/null || true
+      [[ -f /etc/apt/sources.list ]] && sed -i 's#^deb http://#deb https://#' /etc/apt/sources.list 2>/dev/null || true
       # 修正 bullseye 的 security 行：bullseye/updates → debian-security bullseye-security
-      sed -i -E 's#^(deb\s+https?://security\.debian\.org)(/debian-security)?\s+bullseye/updates(.*)$#\1/debian-security bullseye-security\3#' /etc/apt/sources.list
+      [[ -f /etc/apt/sources.list ]] && sed -i -E 's#^(deb\s+https?://security\.debian\.org)(/debian-security)?\s+bullseye/updates(.*)$#\1/debian-security bullseye-security\3#' /etc/apt/sources.list || true
 
       local AOPT=""
       curl -6 -fsS --connect-timeout 2 https://deb.debian.org >/dev/null 2>&1 || AOPT='-o Acquire::ForceIPv4=true'
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.5.2"
+SCRIPT_VERSION="v3.9.9"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -303,7 +303,9 @@ hr(){ printf "${C_DIM}==========================================================
 
 # ===== 基础工具 =====
 info(){ echo -e "[${C_CYAN}信息${C_RESET}] $*"; }
+ok(){   echo -e "[${C_GREEN}成功${C_RESET}] $*"; }
 warn(){ echo -e "[${C_YELLOW}警告${C_RESET}] $*"; }
+err(){  echo -e "[${C_RED}错误${C_RESET}] $*" >&2; }
 die(){  echo -e "[${C_RED}错误${C_RESET}] $*" >&2; exit 1; }
 
 # --- 架构映射：uname -m -> 发行资产名 ---
@@ -632,10 +634,122 @@ ensure_warpcli_proxy(){
   systemctl enable --now warp-svc >/dev/null 2>&1 || true
 
   # 已注册则跳过；未注册则自动同意条款
-  warp-cli registration show >/dev/null 2>&1 || {
+  if ! warp-cli registration show >/dev/null 2>&1; then
     info "正在初始化 Cloudflare WARP"
-    yes y | warp-cli registration new >/dev/null 2>&1 || return 1
-  }
+
+    # warp-cli 强制检测 TTY，非 TTY 拒绝输入，需模拟真实终端注入 y
+    # 优先级：python3 pty（最可靠）→ expect → 安装 python3 兜底
+    _warp_reg_ok=0
+
+    if command -v python3 >/dev/null 2>&1; then
+      python3 - <<'PYEOF' 2>/dev/null && _warp_reg_ok=1 || true
+import pty, os, time, select, sys
+
+def run():
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvp("warp-cli", ["warp-cli", "registration", "new"])
+    else:
+        answered = False
+        for _ in range(30):
+            r, _, _ = select.select([fd], [], [], 1)
+            if r:
+                try:
+                    data = os.read(fd, 4096).decode(errors="ignore")
+                except OSError:
+                    break
+                if not answered and ("y/N" in data or "y/n" in data):
+                    time.sleep(0.2)
+                    os.write(fd, b"y\n")
+                    answered = True
+                if "Success" in data:
+                    sys.exit(0)
+            try:
+                ret = os.waitpid(pid, os.WNOHANG)
+                if ret[0] != 0:
+                    break
+            except ChildProcessError:
+                break
+        try:
+            os.waitpid(pid, 0)
+        except Exception:
+            pass
+        sys.exit(1)
+
+run()
+PYEOF
+
+    elif command -v expect >/dev/null 2>&1; then
+      expect -c '
+        spawn warp-cli registration new
+        expect -re {[yY]/[nN]}
+        send "y\r"
+        expect eof
+      ' >/dev/null 2>&1 && _warp_reg_ok=1 || true
+
+    else
+      # 尝试安装 python3（兜底）
+      warn "未找到 python3/expect，尝试安装 python3..."
+      if command -v apt-get >/dev/null 2>&1; then
+        apt-get install -y python3 >/dev/null 2>&1 || true
+      elif command -v dnf >/dev/null 2>&1; then
+        dnf install -y python3 >/dev/null 2>&1 || true
+      elif command -v yum >/dev/null 2>&1; then
+        yum install -y python3 >/dev/null 2>&1 || true
+      elif command -v pacman >/dev/null 2>&1; then
+        pacman -Sy --noconfirm python >/dev/null 2>&1 || true
+      elif command -v zypper >/dev/null 2>&1; then
+        zypper --non-interactive install python3 >/dev/null 2>&1 || true
+      fi
+
+      if command -v python3 >/dev/null 2>&1; then
+        python3 - <<'PYEOF' 2>/dev/null && _warp_reg_ok=1 || true
+import pty, os, time, select, sys
+
+def run():
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvp("warp-cli", ["warp-cli", "registration", "new"])
+    else:
+        answered = False
+        for _ in range(30):
+            r, _, _ = select.select([fd], [], [], 1)
+            if r:
+                try:
+                    data = os.read(fd, 4096).decode(errors="ignore")
+                except OSError:
+                    break
+                if not answered and ("y/N" in data or "y/n" in data):
+                    time.sleep(0.2)
+                    os.write(fd, b"y\n")
+                    answered = True
+                if "Success" in data:
+                    sys.exit(0)
+            try:
+                ret = os.waitpid(pid, os.WNOHANG)
+                if ret[0] != 0:
+                    break
+            except ChildProcessError:
+                break
+        try:
+            os.waitpid(pid, 0)
+        except Exception:
+            pass
+        sys.exit(1)
+
+run()
+PYEOF
+      else
+        err "无法自动完成 WARP 注册（缺少 python3/expect），请手动运行：warp-cli registration new"
+        return 1
+      fi
+    fi
+
+    sleep 2
+    if ! warp-cli registration show >/dev/null 2>&1; then
+      err "WARP 注册失败，请手动运行：warp-cli registration new"; return 1
+    fi
+  fi
 
   # proxy 模式：不改系统默认路由
   warp-cli mode proxy >/dev/null 2>&1 || true
@@ -665,7 +779,7 @@ ensure_warpcli_proxy(){
     return 1
   fi
 
-  ok "WARP proxy 已就绪：socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}"
+  ok "WARP proxy 已就绪"
   return 0
 }
 
@@ -884,14 +998,14 @@ write_config(){
       (inbound_tuic($PW9) + {tag:"tuic-v5-warp"})
     ],
     outbounds: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
+      if $ENABLE_WARP=="true" then
         [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}, warp_outbound]
       else
         [{type:"direct", tag:"direct"}, {type:"block", tag:"block"}]
       end
     ),
     route: (
-      if $ENABLE_WARP=="true" and ($WPRIV|length)>0 and ($WHOST|length)>0 then
+      if $ENABLE_WARP=="true" then
         { default_domain_resolver:"dns-remote", rules:[
             { inbound: ["vless-reality-warp","vless-grpcr-warp","trojan-reality-warp","hy2-warp","vmess-ws-warp","hy2-obfs-warp","ss2022-warp","ss-warp","tuic-v5-warp"], outbound:"warp" }
           ],
@@ -1080,26 +1194,11 @@ rotate_ports(){
 
 
 uninstall_all(){
-  # 停止服务
   systemctl stop "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
-  
-  # 禁用服务
   systemctl disable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
-  
-  # 删除 systemd 服务文件
   rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}"
-  
-  # 重新加载 systemd 配置
   systemctl daemon-reload
-  
-  # 删除 sing-box 二进制文件和配置文件
-  rm -rf /usr/local/bin/sing-box
-  rm -rf /var/lib/sing-box-plus
-  
-  # 清理脚本的工作目录
   rm -rf "$SB_DIR"
-
-  # 输出卸载完成的提示
   echo -e "${C_GREEN}已卸载并清理完成。${C_RESET}"
   exit 0
 }
