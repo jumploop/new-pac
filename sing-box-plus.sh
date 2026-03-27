@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v3.9.9
+#  Version: v4.4.0
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -182,7 +182,7 @@ install_singbox_binary() {
 
   ensure_jq_static || { echo "[ERROR] 无法获取 jq，二进制模式失败"; rm -rf "$tmp"; return 1; }
 
-json="$(with_retry 3 curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/tags/v1.12.22)" || { rm -rf "$tmp"; return 1; }
+json="$(with_retry 3 curl -fsSL https://api.github.com/repos/SagerNet/sing-box/releases/latest)" || { rm -rf "$tmp"; return 1; }
   url="$(printf '%s' "$json" | jq -r --arg a "$goarch" '
     .assets[] | select(.name|test("linux-" + $a + "\\.(tar\\.(xz|gz)|zip)$")) | .browser_download_url
   ' | head -n1)"
@@ -286,7 +286,7 @@ ENABLE_TUIC=${ENABLE_TUIC:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v3.9.9"
+SCRIPT_VERSION="v4.4.0"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
@@ -540,6 +540,8 @@ mk_cert(){
       -keyout "$key" -out "$crt" -subj "/CN=$REALITY_SERVER" \
       -addext "subjectAltName=DNS:$REALITY_SERVER" >/dev/null 2>&1
   fi
+    CRT_SHA256=$(openssl x509 -in "$crt" -fingerprint -sha256 -noout \
+    | sed 's/SHA256 Fingerprint=//;s/://g' | tr 'A-F' 'a-f')
 }
 
 ensure_creds(){
@@ -779,7 +781,7 @@ PYEOF
     return 1
   fi
 
-  ok "WARP proxy 已就绪"
+  ok "WARP proxy 已就绪：socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}"
   return 0
 }
 
@@ -856,7 +858,7 @@ install_singbox() {
   command -v unzip >/dev/null 2>&1 || ensure_deps unzip   >/dev/null 2>&1 || true
 
   local repo="SagerNet/sing-box"
-  local tag="${SINGBOX_TAG:-v1.12.22}"   # 允许用环境变量固定版本，如 v1.12.7
+  local tag="${SINGBOX_TAG:-latest}"   # 允许用环境变量固定版本，如 v1.12.7
   local arch; arch="$(arch_map)"
   local api url tmp pkg re rel_url
 
@@ -918,7 +920,7 @@ Requires=network-online.target
 
 [Service]
 Type=simple
-Environment=ENABLE_DEPRECATED_WIREGUARD_OUTBOUND=true
+Environment=ENABLE_DEPRECATED_LEGACY_DNS_SERVERS=true
 ExecStart=${BIN_PATH} run -c ${CONF_JSON} -D ${DATA_DIR}
 Restart=on-failure
 RestartSec=3
@@ -975,8 +977,8 @@ write_config(){
 
   {
     log:{level:"info", timestamp:true},
-    dns:{ servers:[ {tag:"dns-remote", address:"https://1.1.1.1/dns-query", detour:"direct"}, {address:"tls://dns.google", detour:"direct"} ], strategy:"prefer_ipv4" },
-    inbounds:[
+  dns:{ servers:[ {type:"https", tag:"dns-remote", server:"1.1.1.1", server_port:443, path:"/dns-query"}, {type:"udp", tag:"dns-local", server:"8.8.8.8"} ], strategy:"prefer_ipv4" },
+  inbounds:[
       (inbound_vless_flow($P1) + {tag:"vless-reality"}),
       (inbound_vless($P2) + {tag:"vless-grpcr", transport:{type:"grpc", service_name:$GRPC}}),
       (inbound_trojan($P3) + {tag:"trojan-reality"}),
@@ -1113,15 +1115,19 @@ JSON
   links_warp+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS_W}#ss-warp")
   links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
 
-  echo -e "${C_BLUE}${C_BOLD}分享链接（18 个）${C_RESET}"
+echo -e "${C_BLUE}${C_BOLD}分享链接（18 个）${C_RESET}"
   hr
   echo -e "${C_CYAN}${C_BOLD}【直连节点（9）】${C_RESET}（vless-reality / vless-grpc-reality / trojan-reality / vmess-ws / hy2 / hy2-obfs / ss2022 / ss / tuic）"
   for l in "${links_direct[@]}"; do echo "  $l"; done
   hr
   echo -e "${C_CYAN}${C_BOLD}【WARP 节点（9）】${C_RESET}（同上 9 种，带 -warp）"
   echo -e "${C_DIM}说明：带 -warp 的 9 个节点走 Cloudflare WARP 出口，流媒体解锁更友好${C_RESET}"
-  echo -e "${C_DIM}提示：TUIC 默认 allowInsecure=1，v2rayN 导入即用${C_RESET}"
   for l in "${links_warp[@]}"; do echo "  $l"; done
+  hr
+  echo -e "${C_YELLOW}📌 如果你使用 Xray-core v26.2.6+，hysteria2 节点的 allowInsecure 已被移除，${C_RESET}"
+  echo -e "${C_YELLOW}   请改用以下 pinnedPeerCertSha256 节点：${C_RESET}"
+  echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-pinnedPeerCertSha256"
+  echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-warp-pinnedPeerCertSha256"
   hr
 }
 
@@ -1208,7 +1214,7 @@ deploy_native(){
   install_singbox
   write_config
   info "检查配置 ..."
-  ENABLE_DEPRECATED_WIREGUARD_OUTBOUND=true "$BIN_PATH" check -c "$CONF_JSON"
+  "$BIN_PATH" check -c "$CONF_JSON"
   info "写入并启用 systemd 服务 ..."
   write_systemd
   systemctl restart "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
