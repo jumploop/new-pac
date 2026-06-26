@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
-#  Sing-Box-Plus 管理脚本（18 节点：直连 9 + WARP 9）
-#  Version: v4.5.0
+#  Sing-Box-Plus 管理脚本（20 节点：直连 10 + WARP 10）
+#  Version: v4.7.0
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
@@ -282,12 +282,16 @@ ENABLE_HY2_OBFS=${ENABLE_HY2_OBFS:-true}
 ENABLE_SS2022=${ENABLE_SS2022:-true}
 ENABLE_SS=${ENABLE_SS:-true}
 ENABLE_TUIC=${ENABLE_TUIC:-true}
+ENABLE_ANYTLS=${ENABLE_ANYTLS:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v4.5.0"
+SCRIPT_VERSION="v4.7.0"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
+# REALITY 偷域名池：每个 reality inbound 安装时各自随机抽一个，抽中后写入 creds.env 持久化，
+# 重启/重装不会变（不会让旧客户端链接失效）。空格分隔，全部需满足 TLS1.3 + H2、不重定向、未被墙。
+REALITY_SERVERS=${REALITY_SERVERS:-"swift.org yahoo.com www.yahoo.com addons.mozilla.org lovelive-anime.jp www.lovelive-anime.jp one-piece.com www.one-piece.com www.microsoft.com www.apple.com gateway.icloud.com"}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
 VMESS_WS_PATH=${VMESS_WS_PATH:-/vm}
 
@@ -395,7 +399,7 @@ is_uuid(){ [[ "$1" =~ ^[0-9a-fA-F-]{36}$ ]]; }
 
 ensure_dirs(){ mkdir -p "$SB_DIR" "$DATA_DIR" "$CERT_DIR" "$WGCF_DIR"; }
 
-# ===== 端口（18 个互不重复） =====
+# ===== 端口（20 个互不重复） =====
 PORTS=()
 gen_port() {
   while :; do
@@ -407,9 +411,9 @@ gen_port() {
 rand_ports_reset(){ PORTS=(); }
 
 PORT_VLESSR=""; PORT_VLESS_GRPCR=""; PORT_TROJANR=""; PORT_HY2=""; PORT_VMESS_WS=""
-PORT_HY2_OBFS=""; PORT_SS2022=""; PORT_SS=""; PORT_TUIC=""
+PORT_HY2_OBFS=""; PORT_SS2022=""; PORT_SS=""; PORT_TUIC=""; PORT_ANYTLS=""
 PORT_VLESSR_W=""; PORT_VLESS_GRPCR_W=""; PORT_TROJANR_W=""; PORT_HY2_W=""; PORT_VMESS_WS_W=""
-PORT_HY2_OBFS_W=""; PORT_SS2022_W=""; PORT_SS_W=""; PORT_TUIC_W=""
+PORT_HY2_OBFS_W=""; PORT_SS2022_W=""; PORT_SS_W=""; PORT_TUIC_W=""; PORT_ANYTLS_W=""
 
 save_ports(){ cat > "$SB_DIR/ports.env" <<EOF
 PORT_VLESSR=$PORT_VLESSR
@@ -421,6 +425,7 @@ PORT_HY2_OBFS=$PORT_HY2_OBFS
 PORT_SS2022=$PORT_SS2022
 PORT_SS=$PORT_SS
 PORT_TUIC=$PORT_TUIC
+PORT_ANYTLS=$PORT_ANYTLS
 PORT_VLESSR_W=$PORT_VLESSR_W
 PORT_VLESS_GRPCR_W=$PORT_VLESS_GRPCR_W
 PORT_TROJANR_W=$PORT_TROJANR_W
@@ -430,14 +435,15 @@ PORT_HY2_OBFS_W=$PORT_HY2_OBFS_W
 PORT_SS2022_W=$PORT_SS2022_W
 PORT_SS_W=$PORT_SS_W
 PORT_TUIC_W=$PORT_TUIC_W
+PORT_ANYTLS_W=$PORT_ANYTLS_W
 EOF
 }
 load_ports(){ safe_source_env "$SB_DIR/ports.env" || return 1; }
 
 save_all_ports(){
   rand_ports_reset
-  for v in PORT_VLESSR PORT_VLESS_GRPCR PORT_TROJANR PORT_HY2 PORT_VMESS_WS PORT_HY2_OBFS PORT_SS2022 PORT_SS PORT_TUIC \
-           PORT_VLESSR_W PORT_VLESS_GRPCR_W PORT_TROJANR_W PORT_HY2_W PORT_VMESS_WS_W PORT_HY2_OBFS_W PORT_SS2022_W PORT_SS_W PORT_TUIC_W; do
+  for v in PORT_VLESSR PORT_VLESS_GRPCR PORT_TROJANR PORT_HY2 PORT_VMESS_WS PORT_HY2_OBFS PORT_SS2022 PORT_SS PORT_TUIC PORT_ANYTLS \
+           PORT_VLESSR_W PORT_VLESS_GRPCR_W PORT_TROJANR_W PORT_HY2_W PORT_VMESS_WS_W PORT_HY2_OBFS_W PORT_SS2022_W PORT_SS_W PORT_TUIC_W PORT_ANYTLS_W; do
     [[ -n "${!v:-}" ]] && PORTS+=("${!v}")
   done
   [[ -z "${PORT_VLESSR:-}" ]] && PORT_VLESSR=$(gen_port)
@@ -449,6 +455,7 @@ save_all_ports(){
   [[ -z "${PORT_SS2022:-}" ]] && PORT_SS2022=$(gen_port)
   [[ -z "${PORT_SS:-}" ]] && PORT_SS=$(gen_port)
   [[ -z "${PORT_TUIC:-}" ]] && PORT_TUIC=$(gen_port)
+  [[ -z "${PORT_ANYTLS:-}" ]] && PORT_ANYTLS=$(gen_port)
   [[ -z "${PORT_VLESSR_W:-}" ]] && PORT_VLESSR_W=$(gen_port)
   [[ -z "${PORT_VLESS_GRPCR_W:-}" ]] && PORT_VLESS_GRPCR_W=$(gen_port)
   [[ -z "${PORT_TROJANR_W:-}" ]] && PORT_TROJANR_W=$(gen_port)
@@ -458,6 +465,7 @@ save_all_ports(){
   [[ -z "${PORT_SS2022_W:-}" ]] && PORT_SS2022_W=$(gen_port)
   [[ -z "${PORT_SS_W:-}" ]] && PORT_SS_W=$(gen_port)
   [[ -z "${PORT_TUIC_W:-}" ]] && PORT_TUIC_W=$(gen_port)
+  [[ -z "${PORT_ANYTLS_W:-}" ]] && PORT_ANYTLS_W=$(gen_port)
   save_ports
 }
 
@@ -473,6 +481,7 @@ ENABLE_HY2_OBFS=$ENABLE_HY2_OBFS
 ENABLE_SS2022=$ENABLE_SS2022
 ENABLE_SS=$ENABLE_SS
 ENABLE_TUIC=$ENABLE_TUIC
+ENABLE_ANYTLS=$ENABLE_ANYTLS
 ENABLE_WARP=$ENABLE_WARP
 REALITY_SERVER=$REALITY_SERVER
 REALITY_SERVER_PORT=$REALITY_SERVER_PORT
@@ -494,6 +503,13 @@ SS2022_KEY=$SS2022_KEY
 SS_PWD=$SS_PWD
 TUIC_UUID=$TUIC_UUID
 TUIC_PWD=$TUIC_PWD
+ANYTLS_PWD=$ANYTLS_PWD
+RS_VR=$RS_VR
+RS_GR=$RS_GR
+RS_TR=$RS_TR
+RS_VRW=$RS_VRW
+RS_GRW=$RS_GRW
+RS_TRW=$RS_TRW
 EOF
 }
 load_creds(){ safe_source_env "$SB_DIR/creds.env" || return 1; }
@@ -522,6 +538,13 @@ rand_hex8(){
   fi
 }
 rand_b64_32(){ openssl rand -base64 32 | tr -d "\n"; }
+
+# 从 REALITY_SERVERS 池里随机抽一个域名（池为空则回退到 REALITY_SERVER）
+pick_reality(){
+  local arr=($REALITY_SERVERS); local n=${#arr[@]}
+  (( n == 0 )) && { printf '%s' "$REALITY_SERVER"; return; }
+  printf '%s' "${arr[$((RANDOM % n))]}"
+}
 
 gen_uuid(){
   local u=""
@@ -558,6 +581,14 @@ ensure_creds(){
   [[ -z "${SS2022_KEY:-}" ]] && SS2022_KEY=$(rand_b64_32)
   [[ -z "${SS_PWD:-}" ]] && SS_PWD=$(openssl rand -base64 24 | tr -d "=\n" | tr "+/" "-_")
   TUIC_UUID="$UUID"; TUIC_PWD="$UUID"
+  [[ -z "${ANYTLS_PWD:-}" ]] && ANYTLS_PWD=$(rand_b64_32)
+  # 每个 reality inbound 独立随机偷一个域名（首次安装抽取后持久化）
+  [[ -z "${RS_VR:-}"  ]] && RS_VR=$(pick_reality)    # vless-reality
+  [[ -z "${RS_GR:-}"  ]] && RS_GR=$(pick_reality)    # vless-grpc-reality
+  [[ -z "${RS_TR:-}"  ]] && RS_TR=$(pick_reality)    # trojan-reality
+  [[ -z "${RS_VRW:-}" ]] && RS_VRW=$(pick_reality)   # vless-reality-warp
+  [[ -z "${RS_GRW:-}" ]] && RS_GRW=$(pick_reality)   # vless-grpc-reality-warp
+  [[ -z "${RS_TRW:-}" ]] && RS_TRW=$(pick_reality)   # trojan-reality-warp
   save_creds
 }
 
@@ -912,7 +943,7 @@ install_singbox() {
 # ===== systemd =====
 write_systemd(){ cat > "/etc/systemd/system/${SYSTEMD_SERVICE}" <<EOF
 [Unit]
-Description=Sing-Box (Native 18 nodes)
+Description=Sing-Box (Native 20 nodes)
 After=network-online.target warp-svc.service
 Wants=network-online.target warp-svc.service
 Requires=network-online.target
@@ -945,30 +976,33 @@ write_config(){
   --arg RS "$REALITY_SERVER" --argjson RSP "${REALITY_SERVER_PORT:-443}" --arg UID "$UUID" \
   --arg WSHOST "$WARP_SOCKS_HOST" --argjson WSPORT "$WARP_SOCKS_PORT" \
   --arg RPR "$REALITY_PRIV" --arg RPB "$REALITY_PUB" --arg SID "$REALITY_SID" \
+  --arg RS_VR "$RS_VR" --arg RS_GR "$RS_GR" --arg RS_TR "$RS_TR" \
+  --arg RS_VRW "$RS_VRW" --arg RS_GRW "$RS_GRW" --arg RS_TRW "$RS_TRW" \
   --arg HY2 "$HY2_PWD" --arg HY22 "$HY2_PWD2" --arg HY2O "$HY2_OBFS_PWD" \
   --arg GRPC "$GRPC_SERVICE" --arg VMWS "$VMESS_WS_PATH" --arg CRT "$CRT" --arg KEY "$KEY" \
-  --arg SS2022 "$SS2022_KEY" --arg SSPWD "$SS_PWD" --arg TUICUUID "$TUIC_UUID" --arg TUICPWD "$TUIC_PWD" \
+  --arg SS2022 "$SS2022_KEY" --arg SSPWD "$SS_PWD" --arg TUICUUID "$TUIC_UUID" --arg TUICPWD "$TUIC_PWD" --arg ANYTLSPWD "$ANYTLS_PWD" \
   --argjson P1 "$PORT_VLESSR" --argjson P2 "$PORT_VLESS_GRPCR" --argjson P3 "$PORT_TROJANR" \
   --argjson P4 "$PORT_HY2" --argjson P5 "$PORT_VMESS_WS" --argjson P6 "$PORT_HY2_OBFS" \
-  --argjson P7 "$PORT_SS2022" --argjson P8 "$PORT_SS" --argjson P9 "$PORT_TUIC" \
+  --argjson P7 "$PORT_SS2022" --argjson P8 "$PORT_SS" --argjson P9 "$PORT_TUIC" --argjson P10 "$PORT_ANYTLS" \
   --argjson PW1 "$PORT_VLESSR_W" --argjson PW2 "$PORT_VLESS_GRPCR_W" --argjson PW3 "$PORT_TROJANR_W" \
   --argjson PW4 "$PORT_HY2_W" --argjson PW5 "$PORT_VMESS_WS_W" --argjson PW6 "$PORT_HY2_OBFS_W" \
-  --argjson PW7 "$PORT_SS2022_W" --argjson PW8 "$PORT_SS_W" --argjson PW9 "$PORT_TUIC_W" \
+  --argjson PW7 "$PORT_SS2022_W" --argjson PW8 "$PORT_SS_W" --argjson PW9 "$PORT_TUIC_W" --argjson PW10 "$PORT_ANYTLS_W" \
   --arg ENABLE_WARP "$ENABLE_WARP" \
   --arg WPRIV "${WARP_PRIVATE_KEY:-}" --arg WPPUB "${WARP_PEER_PUBLIC_KEY:-}" \
   --arg WHOST "${WARP_ENDPOINT_HOST:-}" --argjson WPORT "${WARP_ENDPOINT_PORT:-0}" \
   --arg W4 "${WARP_ADDRESS_V4:-}" --arg W6 "${WARP_ADDRESS_V6:-}" \
   --argjson WR1 "${WARP_RESERVED_1:-0}" --argjson WR2 "${WARP_RESERVED_2:-0}" --argjson WR3 "${WARP_RESERVED_3:-0}" \
   '
-  def inbound_vless($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
-  def inbound_vless_flow($port): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID, flow:"xtls-rprx-vision"}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
-  def inbound_trojan($port): {type:"trojan", listen:"::", listen_port:$port, users:[{password:$UID}], tls:{enabled:true, server_name:$RS, reality:{enabled:true, handshake:{server:$RS, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
+  def inbound_vless($port; $rs): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID}], tls:{enabled:true, server_name:$rs, reality:{enabled:true, handshake:{server:$rs, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
+  def inbound_vless_flow($port; $rs): {type:"vless", listen:"::", listen_port:$port, users:[{uuid:$UID, flow:"xtls-rprx-vision"}], tls:{enabled:true, server_name:$rs, reality:{enabled:true, handshake:{server:$rs, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
+  def inbound_trojan($port; $rs): {type:"trojan", listen:"::", listen_port:$port, users:[{password:$UID}], tls:{enabled:true, server_name:$rs, reality:{enabled:true, handshake:{server:$rs, server_port:$RSP}, private_key:$RPR, short_id:[$SID]}}};
   def inbound_hy2($port): {type:"hysteria2", listen:"::", listen_port:$port, users:[{name:"hy2", password:$HY2}], tls:{enabled:true, certificate_path:$CRT, key_path:$KEY}};
   def inbound_vmess_ws($port): {type:"vmess", listen:"::", listen_port:$port, users:[{uuid:$UID}], transport:{type:"ws", path:$VMWS}};
   def inbound_hy2_obfs($port): {type:"hysteria2", listen:"::", listen_port:$port, users:[{name:"hy2", password:$HY22}], obfs:{type:"salamander", password:$HY2O}, tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
   def inbound_ss2022($port): {type:"shadowsocks", listen:"::", listen_port:$port, method:"2022-blake3-aes-256-gcm", password:$SS2022};
   def inbound_ss($port): {type:"shadowsocks", listen:"::", listen_port:$port, method:"aes-256-gcm", password:$SSPWD};
   def inbound_tuic($port): {type:"tuic", listen:"::", listen_port:$port, users:[{uuid:$TUICUUID, password:$TUICPWD}], congestion_control:"bbr", tls:{enabled:true, certificate_path:$CRT, key_path:$KEY, alpn:["h3"]}};
+  def inbound_anytls($port): {type:"anytls", listen:"::", listen_port:$port, users:[{name:"anytls", password:$ANYTLSPWD}], tls:{enabled:true, certificate_path:$CRT, key_path:$KEY}};
 
   def warp_outbound:
     {type:"socks", tag:"warp", server:$WSHOST, server_port:$WSPORT};
@@ -978,25 +1012,27 @@ write_config(){
     log:{level:"info", timestamp:true},
   dns:{ servers:[ {type:"https", tag:"dns-remote", server:"1.1.1.1", server_port:443, path:"/dns-query"}, {type:"udp", tag:"dns-local", server:"8.8.8.8"} ], strategy:"prefer_ipv4" },
   inbounds:[
-      (inbound_vless_flow($P1) + {tag:"vless-reality"}),
-      (inbound_vless($P2) + {tag:"vless-grpcr", transport:{type:"grpc", service_name:$GRPC}}),
-      (inbound_trojan($P3) + {tag:"trojan-reality"}),
+      (inbound_vless_flow($P1; $RS_VR) + {tag:"vless-reality"}),
+      (inbound_vless($P2; $RS_GR) + {tag:"vless-grpcr", transport:{type:"grpc", service_name:$GRPC}}),
+      (inbound_trojan($P3; $RS_TR) + {tag:"trojan-reality"}),
       (inbound_hy2($P4) + {tag:"hy2"}),
       (inbound_vmess_ws($P5) + {tag:"vmess-ws"}),
       (inbound_hy2_obfs($P6) + {tag:"hy2-obfs"}),
       (inbound_ss2022($P7) + {tag:"ss2022"}),
       (inbound_ss($P8) + {tag:"ss"}),
       (inbound_tuic($P9) + {tag:"tuic-v5"}),
+      (inbound_anytls($P10) + {tag:"anytls"}),
 
-      (inbound_vless_flow($PW1) + {tag:"vless-reality-warp"}),
-      (inbound_vless($PW2) + {tag:"vless-grpcr-warp", transport:{type:"grpc", service_name:$GRPC}}),
-      (inbound_trojan($PW3) + {tag:"trojan-reality-warp"}),
+      (inbound_vless_flow($PW1; $RS_VRW) + {tag:"vless-reality-warp"}),
+      (inbound_vless($PW2; $RS_GRW) + {tag:"vless-grpcr-warp", transport:{type:"grpc", service_name:$GRPC}}),
+      (inbound_trojan($PW3; $RS_TRW) + {tag:"trojan-reality-warp"}),
       (inbound_hy2($PW4) + {tag:"hy2-warp"}),
       (inbound_vmess_ws($PW5) + {tag:"vmess-ws-warp"}),
       (inbound_hy2_obfs($PW6) + {tag:"hy2-obfs-warp"}),
       (inbound_ss2022($PW7) + {tag:"ss2022-warp"}),
       (inbound_ss($PW8) + {tag:"ss-warp"}),
-      (inbound_tuic($PW9) + {tag:"tuic-v5-warp"})
+      (inbound_tuic($PW9) + {tag:"tuic-v5-warp"}),
+      (inbound_anytls($PW10) + {tag:"anytls-warp"})
     ],
     outbounds: (
       if $ENABLE_WARP=="true" then
@@ -1008,7 +1044,7 @@ write_config(){
     route: (
       if $ENABLE_WARP=="true" then
         { default_domain_resolver:"dns-remote", rules:[
-            { inbound: ["vless-reality-warp","vless-grpcr-warp","trojan-reality-warp","hy2-warp","vmess-ws-warp","hy2-obfs-warp","ss2022-warp","ss-warp","tuic-v5-warp"], outbound:"warp" }
+            { inbound: ["vless-reality-warp","vless-grpcr-warp","trojan-reality-warp","hy2-warp","vmess-ws-warp","hy2-obfs-warp","ss2022-warp","ss-warp","tuic-v5-warp","anytls-warp"], outbound:"warp" }
           ],
           final:"direct"
         }
@@ -1026,9 +1062,11 @@ open_firewall(){
   rules+=("${PORT_VLESSR}/tcp" "${PORT_VLESS_GRPCR}/tcp" "${PORT_TROJANR}/tcp" "${PORT_VMESS_WS}/tcp")
   rules+=("${PORT_HY2}/udp" "${PORT_HY2_OBFS}/udp" "${PORT_TUIC}/udp")
   rules+=("${PORT_SS2022}/tcp" "${PORT_SS2022}/udp" "${PORT_SS}/tcp" "${PORT_SS}/udp")
+  rules+=("${PORT_ANYTLS}/tcp")
   rules+=("${PORT_VLESSR_W}/tcp" "${PORT_VLESS_GRPCR_W}/tcp" "${PORT_TROJANR_W}/tcp" "${PORT_VMESS_WS_W}/tcp")
   rules+=("${PORT_HY2_W}/udp" "${PORT_HY2_OBFS_W}/udp" "${PORT_TUIC_W}/udp")
   rules+=("${PORT_SS2022_W}/tcp" "${PORT_SS2022_W}/udp" "${PORT_SS_W}/tcp" "${PORT_SS_W}/udp")
+  rules+=("${PORT_ANYTLS_W}/tcp")
 
   if command -v ufw >/dev/null 2>&1 && ufw status | grep -q -E "active|活跃"; then
     for r in "${rules[@]}"; do ufw allow "$r" >/dev/null 2>&1 || true; done
@@ -1071,6 +1109,8 @@ open_firewall(){
 # ===== 分享链接（分组输出 + 提示） =====
 print_links_grouped(){
   load_env; load_creds; load_ports
+  ensure_dirs
+  mk_cert    # 确保 CRT_SHA256 已赋值（pinnedPeerCertSha256 节点需要）
   local mode="${1:-4}" ip host
   if [[ "$mode" == "6" ]]; then
     ip="$(get_ip6)"
@@ -1085,9 +1125,9 @@ print_links_grouped(){
   host="$(fmt_host_for_uri "$ip")"
   local links_direct=() links_warp=()
   # 直连9
-  links_direct+=("vless://${UUID}@${host}:${PORT_VLESSR}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality")
-  links_direct+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR}?encryption=none&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality")
-  links_direct+=("trojan://${UUID}@${host}:${PORT_TROJANR}?security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality")
+  links_direct+=("vless://${UUID}@${host}:${PORT_VLESSR}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${RS_VR}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality")
+  links_direct+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR}?encryption=none&security=reality&sni=${RS_GR}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality")
+  links_direct+=("trojan://${UUID}@${host}:${PORT_TROJANR}?security=reality&sni=${RS_TR}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality")
   links_direct+=("hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#hysteria2")
   local VMESS_JSON; VMESS_JSON=$(cat <<JSON
 {"v":"2","ps":"vmess-ws","add":"${ip}","port":"${PORT_VMESS_WS}","id":"${UUID}","aid":"0","net":"ws","type":"none","host":"","path":"${VMESS_WS_PATH}","tls":""}
@@ -1098,11 +1138,12 @@ JSON
   links_direct+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${host}:${PORT_SS2022}#ss2022")
   links_direct+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS}#ss")
   links_direct+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5")
+  links_direct+=("anytls://$(urlenc "${ANYTLS_PWD}")@${host}:${PORT_ANYTLS}?insecure=1&sni=${REALITY_SERVER}#anytls")
 
   # WARP 9
-  links_warp+=("vless://${UUID}@${host}:${PORT_VLESSR_W}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality-warp")
-  links_warp+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR_W}?encryption=none&security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality-warp")
-  links_warp+=("trojan://${UUID}@${host}:${PORT_TROJANR_W}?security=reality&sni=${REALITY_SERVER}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality-warp")
+  links_warp+=("vless://${UUID}@${host}:${PORT_VLESSR_W}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${RS_VRW}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality-warp")
+  links_warp+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR_W}?encryption=none&security=reality&sni=${RS_GRW}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality-warp")
+  links_warp+=("trojan://${UUID}@${host}:${PORT_TROJANR_W}?security=reality&sni=${RS_TRW}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality-warp")
   links_warp+=("hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#hysteria2-warp")
   local VMESS_JSON_W; VMESS_JSON_W=$(cat <<JSON
 {"v":"2","ps":"vmess-ws-warp","add":"${ip}","port":"${PORT_VMESS_WS_W}","id":"${UUID}","aid":"0","net":"ws","type":"none","host":"","path":"${VMESS_WS_PATH}","tls":""}
@@ -1113,17 +1154,18 @@ JSON
   links_warp+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${host}:${PORT_SS2022_W}#ss2022-warp")
   links_warp+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS_W}#ss-warp")
   links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
+  links_warp+=("anytls://$(urlenc "${ANYTLS_PWD}")@${host}:${PORT_ANYTLS_W}?insecure=1&sni=${REALITY_SERVER}#anytls-warp")
 
-echo -e "${C_BLUE}${C_BOLD}分享链接（18 个）${C_RESET}"
+echo -e "${C_BLUE}${C_BOLD}分享链接（20 个）${C_RESET}"
   hr
-  echo -e "${C_CYAN}${C_BOLD}【直连节点（9）】${C_RESET}（vless-reality / vless-grpc-reality / trojan-reality / vmess-ws / hy2 / hy2-obfs / ss2022 / ss / tuic）"
+  echo -e "${C_CYAN}${C_BOLD}【直连节点（10）】${C_RESET}（vless-reality / vless-grpc-reality / trojan-reality / vmess-ws / hy2 / hy2-obfs / ss2022 / ss / tuic / anytls）"
   for l in "${links_direct[@]}"; do echo "  $l"; done
   hr
-  echo -e "${C_CYAN}${C_BOLD}【WARP 节点（9）】${C_RESET}（同上 9 种，带 -warp）"
-  echo -e "${C_DIM}说明：带 -warp 的 9 个节点走 Cloudflare WARP 出口，流媒体解锁更友好${C_RESET}"
+  echo -e "${C_CYAN}${C_BOLD}【WARP 节点（10）】${C_RESET}（同上 10 种，带 -warp）"
+  echo -e "${C_DIM}说明：带 -warp 的 10 个节点走 Cloudflare WARP 出口，流媒体解锁更友好${C_RESET}"
   for l in "${links_warp[@]}"; do echo "  $l"; done
   hr
-  echo -e "${C_YELLOW}📌 如果你使用 Xray-core v26.2.6+，hysteria2 节点的 allowInsecure 已被移除，${C_RESET}"
+  echo -e "${C_YELLOW}📌 如果你使用 v2rayN/Xray-core v26.2.6+，hysteria2 节点的 allowInsecure 已被移除，${C_RESET}"
   echo -e "${C_YELLOW}   请改用以下 pinnedPeerCertSha256 节点：${C_RESET}"
   echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-pinnedPeerCertSha256"
   echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-warp-pinnedPeerCertSha256"
@@ -1160,7 +1202,7 @@ banner(){
   echo -e "系统加速状态：$(bbr_state)"
   echo -e "Sing-Box 启动状态：$(sb_service_state)"
   hr
-  echo -e "  ${C_BLUE}1)${C_RESET} 安装/部署（18 节点）"
+  echo -e "  ${C_BLUE}1)${C_RESET} 安装/部署（20 节点）"
   echo -e "  ${C_GREEN}2)${C_RESET} 查看分享链接（IPv4）"
   echo -e "  ${C_GREEN}6)${C_RESET} 查看分享链接（IPv6）"
   echo -e "  ${C_GREEN}3)${C_RESET} 重启服务"
@@ -1182,13 +1224,13 @@ rotate_ports(){
   load_ports || true
   rand_ports_reset
 
-  # 清空 18 项端口变量，触发重新分配不重复端口
+  # 清空 20 项端口变量，触发重新分配不重复端口
   PORT_VLESSR=""; PORT_VLESS_GRPCR=""; PORT_TROJANR=""; PORT_HY2=""; PORT_VMESS_WS=""
-  PORT_HY2_OBFS=""; PORT_SS2022=""; PORT_SS=""; PORT_TUIC=""
+  PORT_HY2_OBFS=""; PORT_SS2022=""; PORT_SS=""; PORT_TUIC=""; PORT_ANYTLS=""
   PORT_VLESSR_W=""; PORT_VLESS_GRPCR_W=""; PORT_TROJANR_W=""; PORT_HY2_W=""; PORT_VMESS_WS_W=""
-  PORT_HY2_OBFS_W=""; PORT_SS2022_W=""; PORT_SS_W=""; PORT_TUIC_W=""
+  PORT_HY2_OBFS_W=""; PORT_SS2022_W=""; PORT_SS_W=""; PORT_TUIC_W=""; PORT_ANYTLS_W=""
 
-  save_all_ports          # 重新生成并保存 18 个不重复端口
+  save_all_ports          # 重新生成并保存 20 个不重复端口
   write_config            # 用新端口重写 /opt/sing-box/config.json
   open_firewall           # ★ 新增：把“当前配置中的端口”全部放行
   systemctl restart "${SYSTEMD_SERVICE}"
@@ -1218,7 +1260,7 @@ deploy_native(){
   write_systemd
   systemctl restart "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
   open_firewall
-  echo; echo -e "${C_BOLD}${C_GREEN}★ 部署完成（18 节点）${C_RESET}"; echo
+  echo; echo -e "${C_BOLD}${C_GREEN}★ 部署完成（20 节点）${C_RESET}"; echo
   # 打印链接并直接退出
   print_links_grouped 4
   exit 0
@@ -1226,7 +1268,7 @@ deploy_native(){
 
 ensure_installed_or_hint(){
   if [[ ! -f "$CONF_JSON" ]]; then
-    warn "尚未安装，请先选择 1) 安装/部署（18 节点）"
+    warn "尚未安装，请先选择 1) 安装/部署（20 节点）"
     return 1
   fi
   return 0
