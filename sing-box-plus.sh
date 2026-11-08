@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================
 #  Sing-Box-Plus 管理脚本（20 节点：直连 10 + WARP 10）
-#  Version: v4.8.0
+#  Version: v4.8.1
 #  author：Alvin9999
 #  Repo: https://github.com/Alvin9999-newpac/Sing-Box-Plus
 # ============================================================
 
 set -Eeuo pipefail
 
-stty erase ^H # 让退格键在终端里正常工作
+# 让退格键在终端里正常工作；没有 TTY（如 curl | bash、自动化执行）时 stty 会失败，不能让它在 set -e 下直接退出
+[[ -t 0 ]] && stty erase ^H 2>/dev/null || true
 # ===== [BEGIN] SBP 引导模块 v2.2.0+（包管理器优先 + 二进制回退） =====
 # 模式与哨兵
 : "${SBP_SOFT:=0}"                               # 1=宽松模式（失败尽量继续），默认 0=严格
@@ -286,12 +287,14 @@ ENABLE_ANYTLS=${ENABLE_ANYTLS:-true}
 
 # 常量
 SCRIPT_NAME="Sing-Box-Plus 管理脚本"
-SCRIPT_VERSION="v4.8.0"
+SCRIPT_VERSION="v4.8.1"
 REALITY_SERVER=${REALITY_SERVER:-www.microsoft.com}
 REALITY_SERVER_PORT=${REALITY_SERVER_PORT:-443}
 # REALITY 偷域名池：每个 reality inbound 安装时各自随机抽一个，抽中后写入 creds.env 持久化，
 # 重启/重装不会变（不会让旧客户端链接失效）。空格分隔，全部需满足 TLS1.3 + H2、不重定向、未被墙。
 REALITY_SERVERS=${REALITY_SERVERS:-"swift.org yahoo.com www.yahoo.com addons.mozilla.org lovelive-anime.jp www.lovelive-anime.jp one-piece.com www.one-piece.com www.bing.com www.apple.com gateway.icloud.com"}
+# 已从池里下线的域名：creds.env 里若还持久化着这些，重新部署/换端口时会自动重抽（#17：微软调整 TLS 特征后 Reality 失效）
+REALITY_RETIRED=${REALITY_RETIRED:-"www.microsoft.com microsoft.com"}
 GRPC_SERVICE=${GRPC_SERVICE:-grpc}
 VMESS_WS_PATH=${VMESS_WS_PATH:-/vm}
 
@@ -370,20 +373,28 @@ safe_source_env(){ # 安全 source，忽略不存在文件
   set -u
 }
 
-get_ip4(){ # 多源获取公网 IPv4
-  local ip
-  ip=$(curl -4 -fsSL ipv4.icanhazip.com 2>/dev/null || true)
-  [[ -z "$ip" ]] && ip=$(curl -4 -fsSL ifconfig.me 2>/dev/null || true)
-  [[ -z "$ip" ]] && ip=$(curl -4 -fsSL ip.sb 2>/dev/null || true)
-  echo "${ip:-127.0.0.1}"
+get_ip4(){ # 多源获取公网 IPv4（每个源最多等 5 秒，避免某个源卡住导致菜单 2 一直不动）
+  local ip="" src
+  for src in ipv4.icanhazip.com ifconfig.me ip.sb; do
+    ip=$(curl -4 -fsSL --connect-timeout 3 --max-time 5 "$src" 2>/dev/null | tr -d '[:space:]' || true)
+    [[ "$ip" =~ ^[0-9]{1,3}(\.[0-9]{1,3}){3}$ ]] && break
+    ip=""
+  done
+  if [[ -z "$ip" ]]; then
+    warn "获取公网 IPv4 失败，链接里的地址暂用 127.0.0.1，请手动替换为服务器 IP" >&2
+    ip=127.0.0.1
+  fi
+  echo "$ip"
 }
 
 get_ip6(){ # 多源获取公网 IPv6（无 IPv6 则返回空）
-  local ip
-  ip=$(curl -6 -fsSL ipv6.icanhazip.com 2>/dev/null || true)
-  [[ -z "$ip" ]] && ip=$(curl -6 -fsSL ifconfig.me 2>/dev/null || true)
-  [[ -z "$ip" ]] && ip=$(curl -6 -fsSL ip.sb 2>/dev/null || true)
-  echo "${ip:-}"
+  local ip="" src
+  for src in ipv6.icanhazip.com ifconfig.me ip.sb; do
+    ip=$(curl -6 -fsSL --connect-timeout 3 --max-time 5 "$src" 2>/dev/null | tr -d '[:space:]' || true)
+    [[ "$ip" == *:* && "$ip" =~ ^[0-9a-fA-F:]+$ ]] && break
+    ip=""
+  done
+  echo "$ip"
 }
 
 # 兼容旧调用：默认返回 IPv4
@@ -400,15 +411,27 @@ is_uuid(){ [[ "$1" =~ ^[0-9a-fA-F-]{36}$ ]]; }
 ensure_dirs(){ mkdir -p "$SB_DIR" "$DATA_DIR" "$CERT_DIR" "$WGCF_DIR"; }
 
 # ===== 端口（20 个互不重复） =====
+PORT_VARS=(PORT_VLESSR PORT_VLESS_GRPCR PORT_TROJANR PORT_HY2 PORT_VMESS_WS PORT_HY2_OBFS PORT_SS2022 PORT_SS PORT_TUIC PORT_ANYTLS
+           PORT_VLESSR_W PORT_VLESS_GRPCR_W PORT_TROJANR_W PORT_HY2_W PORT_VMESS_WS_W PORT_HY2_OBFS_W PORT_SS2022_W PORT_SS_W PORT_TUIC_W PORT_ANYTLS_W)
 PORTS=()
+# 本机已在监听的端口（tcp+udp），避免和 nginx / xray 等其他程序撞端口
+# 没有 ss（精简镜像）时返回空；|| true 不能省，否则 pipefail + set -e 会让脚本在这里静默退出
+used_ports(){ { ss -Htuln 2>/dev/null || true; } | awk '{n=split($5,a,":"); print a[n]}' | sort -un | tr '\n' ' '; }
+# 用法：gen_port <变量名>
+# 直接给变量赋值，不能写成 VAR=$(gen_port)：$(...) 是子 shell，PORTS+= 回不到父进程，去重表永远是空的
 gen_port() {
+  local __var="$1" p
+  [[ -n "${USED_PORTS+x}" ]] || USED_PORTS=" $(used_ports) "
   while :; do
-    p=$(( ( RANDOM % 55536 ) + 10000 ))
-    [[ $p -le 65535 ]] || continue
-    [[ " ${PORTS[*]-} " != *" $p "* ]] && { PORTS+=("$p"); echo "$p"; return; }
+    p=$(( ( (RANDOM << 15) | RANDOM ) % 55536 + 10000 ))   # 10000-65535
+    [[ " ${PORTS[*]-} " == *" $p "* ]] && continue
+    [[ "$USED_PORTS" == *" $p "* ]] && continue
+    PORTS+=("$p")
+    printf -v "$__var" '%s' "$p"
+    return 0
   done
 }
-rand_ports_reset(){ PORTS=(); }
+rand_ports_reset(){ PORTS=(); unset USED_PORTS; }
 
 PORT_VLESSR=""; PORT_VLESS_GRPCR=""; PORT_TROJANR=""; PORT_HY2=""; PORT_VMESS_WS=""
 PORT_HY2_OBFS=""; PORT_SS2022=""; PORT_SS=""; PORT_TUIC=""; PORT_ANYTLS=""
@@ -442,30 +465,23 @@ load_ports(){ safe_source_env "$SB_DIR/ports.env" || return 1; }
 
 save_all_ports(){
   rand_ports_reset
-  for v in PORT_VLESSR PORT_VLESS_GRPCR PORT_TROJANR PORT_HY2 PORT_VMESS_WS PORT_HY2_OBFS PORT_SS2022 PORT_SS PORT_TUIC PORT_ANYTLS \
-           PORT_VLESSR_W PORT_VLESS_GRPCR_W PORT_TROJANR_W PORT_HY2_W PORT_VMESS_WS_W PORT_HY2_OBFS_W PORT_SS2022_W PORT_SS_W PORT_TUIC_W PORT_ANYTLS_W; do
-    [[ -n "${!v:-}" ]] && PORTS+=("${!v}")
+  local v
+  # 先登记已有端口；旧版本 bug 可能留下重复端口（会导致 sing-box bind 失败），重复的那个清空重新分配
+  for v in "${PORT_VARS[@]}"; do
+    [[ -n "${!v:-}" ]] || continue
+    if [[ " ${PORTS[*]-} " == *" ${!v} "* ]]; then
+      warn "端口 ${!v} 重复（${v}），重新分配"
+      printf -v "$v" '%s' ""
+    else
+      PORTS+=("${!v}")
+    fi
   done
-  [[ -z "${PORT_VLESSR:-}" ]] && PORT_VLESSR=$(gen_port)
-  [[ -z "${PORT_VLESS_GRPCR:-}" ]] && PORT_VLESS_GRPCR=$(gen_port)
-  [[ -z "${PORT_TROJANR:-}" ]] && PORT_TROJANR=$(gen_port)
-  [[ -z "${PORT_HY2:-}" ]] && PORT_HY2=$(gen_port)
-  [[ -z "${PORT_VMESS_WS:-}" ]] && PORT_VMESS_WS=$(gen_port)
-  [[ -z "${PORT_HY2_OBFS:-}" ]] && PORT_HY2_OBFS=$(gen_port)
-  [[ -z "${PORT_SS2022:-}" ]] && PORT_SS2022=$(gen_port)
-  [[ -z "${PORT_SS:-}" ]] && PORT_SS=$(gen_port)
-  [[ -z "${PORT_TUIC:-}" ]] && PORT_TUIC=$(gen_port)
-  [[ -z "${PORT_ANYTLS:-}" ]] && PORT_ANYTLS=$(gen_port)
-  [[ -z "${PORT_VLESSR_W:-}" ]] && PORT_VLESSR_W=$(gen_port)
-  [[ -z "${PORT_VLESS_GRPCR_W:-}" ]] && PORT_VLESS_GRPCR_W=$(gen_port)
-  [[ -z "${PORT_TROJANR_W:-}" ]] && PORT_TROJANR_W=$(gen_port)
-  [[ -z "${PORT_HY2_W:-}" ]] && PORT_HY2_W=$(gen_port)
-  [[ -z "${PORT_VMESS_WS_W:-}" ]] && PORT_VMESS_WS_W=$(gen_port)
-  [[ -z "${PORT_HY2_OBFS_W:-}" ]] && PORT_HY2_OBFS_W=$(gen_port) || true
-  [[ -z "${PORT_SS2022_W:-}" ]] && PORT_SS2022_W=$(gen_port)
-  [[ -z "${PORT_SS_W:-}" ]] && PORT_SS_W=$(gen_port)
-  [[ -z "${PORT_TUIC_W:-}" ]] && PORT_TUIC_W=$(gen_port)
-  [[ -z "${PORT_ANYTLS_W:-}" ]] && PORT_ANYTLS_W=$(gen_port)
+  # 订阅端口也要避开（没有 ss 时只能靠这里去重）
+  local sp; sp=$(sed -n 's/^SUB_PORT=//p' "$SB_DIR/sub.env" 2>/dev/null || true)
+  [[ -n "$sp" ]] && PORTS+=("$sp")
+  for v in "${PORT_VARS[@]}"; do
+    [[ -n "${!v:-}" ]] || gen_port "$v"
+  done
   save_ports
 }
 
@@ -537,13 +553,44 @@ rand_hex8(){
     hexdump -v -n 8 -e '1/1 "%02x"' /dev/urandom
   fi
 }
-rand_b64_32(){ openssl rand -base64 32 | tr -d "\n"; }
+rand_b64_32(){ openssl rand -base64 32 | tr -d "\n"; }   # 只用于 SS2022 密钥（协议要求 base64 的 32 字节）
+# 普通密码只用 0-9a-f：分享链接里不用 urlencode，手动填客户端也不会被 %3D 之类坑到（#16 / #5）
+rand_pwd(){ openssl rand -hex 16 | tr -d "\n"; }
 
-# 从 REALITY_SERVERS 池里随机抽一个域名（池为空则回退到 REALITY_SERVER）
+# 在服务器本机检查一个域名能不能当 Reality 目标：TLS1.3 + X25519 + ALPN h2
+# （Reality 握手时就是服务器去连这个域名，所以要从服务器这边测）。REALITY_CHECK=false 可跳过检测
+declare -A REALITY_CHECKED=()
+reality_target_ok(){
+  local d="$1" out
+  [[ "${REALITY_CHECK:-true}" == "true" ]] || return 0
+  if [[ -z "${REALITY_CHECKED[$d]+x}" ]]; then
+    out=$(timeout 6 openssl s_client -connect "${d}:${REALITY_SERVER_PORT:-443}" -servername "$d" \
+            -tls1_3 -groups X25519 -alpn h2 </dev/null 2>/dev/null || true)
+    if grep -q 'ALPN protocol: h2' <<<"$out" && grep -q 'TLSv1\.3' <<<"$out"; then
+      REALITY_CHECKED[$d]=0
+    else
+      REALITY_CHECKED[$d]=1
+    fi
+  fi
+  return "${REALITY_CHECKED[$d]}"
+}
+
+# 用法：pick_reality <变量名>
+# 从 REALITY_SERVERS 池里随机抽一个：跳过 REALITY_RETIRED 里已下线的，跳过本机检测不通过的；
+# 池为空则回退到 REALITY_SERVER。直接赋值、不走 $(...)，检测结果缓存才能在 6 次抽取之间共用
 pick_reality(){
-  local arr=($REALITY_SERVERS); local n=${#arr[@]}
-  (( n == 0 )) && { printf '%s' "$REALITY_SERVER"; return; }
-  printf '%s' "${arr[$((RANDOM % n))]}"
+  local __var="$1" d i j t pool=() cand=()
+  read -ra pool <<<"$REALITY_SERVERS"
+  for d in "${pool[@]}"; do [[ " $REALITY_RETIRED " == *" $d "* ]] || cand+=("$d"); done
+  if (( ${#cand[@]} == 0 )); then printf -v "$__var" '%s' "$REALITY_SERVER"; return 0; fi
+  for ((i=${#cand[@]}-1; i>0; i--)); do   # 打乱顺序，取第一个检测通过的
+    j=$((RANDOM % (i+1))); t=${cand[i]}; cand[i]=${cand[j]}; cand[j]=$t
+  done
+  for d in "${cand[@]}"; do
+    if reality_target_ok "$d"; then printf -v "$__var" '%s' "$d"; return 0; fi
+  done
+  warn "REALITY 域名池在本机全部检测未通过（openssl 太旧或出网受限？），${__var} 暂用未检测的 ${cand[0]}"
+  printf -v "$__var" '%s' "${cand[0]}"
 }
 
 gen_uuid(){
@@ -569,26 +616,30 @@ CRT_SHA256=$(openssl x509 -in "$crt" -fingerprint -sha256 -noout \
 ensure_creds(){
   [[ -z "${UUID:-}" ]] && UUID=$(gen_uuid)
   is_uuid "$UUID" || UUID=$(gen_uuid)
-  [[ -z "${HY2_PWD:-}" ]] && HY2_PWD=$(rand_b64_32)
+  # 密码只在为空时生成：已安装用户的旧密码不动，旧链接继续可用；新装的才是纯十六进制
+  [[ -z "${HY2_PWD:-}" ]] && HY2_PWD=$(rand_pwd)
   if [[ -z "${REALITY_PRIV:-}" || -z "${REALITY_PUB:-}" || -z "${REALITY_SID:-}" ]]; then
     readarray -t RKP < <(gen_reality)
     REALITY_PRIV=$(printf "%s\n" "${RKP[@]}" | awk '/PrivateKey/{print $2}')
     REALITY_PUB=$(printf "%s\n" "${RKP[@]}" | awk '/PublicKey/{print $2}')
     REALITY_SID=$(rand_hex8)
   fi
-  [[ -z "${HY2_PWD2:-}" ]] && HY2_PWD2=$(rand_b64_32)
-  [[ -z "${HY2_OBFS_PWD:-}" ]] && HY2_OBFS_PWD=$(openssl rand -base64 16 | tr -d "\n")
+  [[ -z "${HY2_PWD2:-}" ]] && HY2_PWD2=$(rand_pwd)
+  [[ -z "${HY2_OBFS_PWD:-}" ]] && HY2_OBFS_PWD=$(rand_pwd)
   [[ -z "${SS2022_KEY:-}" ]] && SS2022_KEY=$(rand_b64_32)
   [[ -z "${SS_PWD:-}" ]] && SS_PWD=$(openssl rand -base64 24 | tr -d "=\n" | tr "+/" "-_")
   TUIC_UUID="$UUID"; TUIC_PWD="$UUID"
-  [[ -z "${ANYTLS_PWD:-}" ]] && ANYTLS_PWD=$(rand_b64_32)
+  [[ -z "${ANYTLS_PWD:-}" ]] && ANYTLS_PWD=$(rand_pwd)
   # 每个 reality inbound 独立随机偷一个域名（首次安装抽取后持久化）
-  [[ -z "${RS_VR:-}"  ]] && RS_VR=$(pick_reality)    # vless-reality
-  [[ -z "${RS_GR:-}"  ]] && RS_GR=$(pick_reality)    # vless-grpc-reality
-  [[ -z "${RS_TR:-}"  ]] && RS_TR=$(pick_reality)    # trojan-reality
-  [[ -z "${RS_VRW:-}" ]] && RS_VRW=$(pick_reality)   # vless-reality-warp
-  [[ -z "${RS_GRW:-}" ]] && RS_GRW=$(pick_reality)   # vless-grpc-reality-warp
-  [[ -z "${RS_TRW:-}" ]] && RS_TRW=$(pick_reality)   # trojan-reality-warp
+  # RS_VR=vless-reality  RS_GR=vless-grpc-reality  RS_TR=trojan-reality  （带 W 的是对应 -warp 节点）
+  local rv
+  for rv in RS_VR RS_GR RS_TR RS_VRW RS_GRW RS_TRW; do
+    if [[ -n "${!rv:-}" && " $REALITY_RETIRED " == *" ${!rv} "* ]]; then
+      warn "${rv} 持久化的偷域名 ${!rv} 已下线，重新抽取（该节点分享链接的 sni 会变，需重新导入）"
+      printf -v "$rv" '%s' ""
+    fi
+    [[ -n "${!rv:-}" ]] || pick_reality "$rv"
+  done
   save_creds
 }
 
@@ -797,7 +848,7 @@ PYEOF
     sleep 1
   done
 
-  if !( ss -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b" || netstat -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b" ); then
+  if ! { ss -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b" || netstat -lntp 2>/dev/null | grep -q ":${WARP_SOCKS_PORT}\b"; }; then
     err "WARP SOCKS5 端口 ${WARP_SOCKS_PORT} 未监听（warp-svc/warp-cli 可能未正常工作）"
     systemctl status warp-svc --no-pager | head -80 || true
     journalctl -u warp-svc -n 120 --no-pager || true
@@ -805,7 +856,7 @@ PYEOF
   fi
 
   # 真正测试 warp=on
-  if ! curl -fsSL --proxy "socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}" https://cloudflare.com/cdn-cgi/trace | grep -q "warp=on"; then
+  if ! curl -fsSL --connect-timeout 5 --max-time 15 --proxy "socks5://${WARP_SOCKS_HOST}:${WARP_SOCKS_PORT}" https://cloudflare.com/cdn-cgi/trace | grep -q "warp=on"; then
     err "WARP 代理测试失败：未检测到 warp=on"
     warp-cli status || true
     return 1
@@ -969,9 +1020,13 @@ systemctl enable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
 write_config(){
   ensure_dirs; load_env || true; load_creds || true; load_ports || true
   ensure_creds; save_all_ports; mk_cert
-  [[ "$ENABLE_WARP" == "true" ]] && ensure_warpcli_proxy
+  # WARP 失败不能中断：换端口时 ports.env 已经写入新端口，这里一退出 config.json 还是旧端口，两边就对不上了
+  if [[ "$ENABLE_WARP" == "true" ]]; then
+    ensure_warpcli_proxy || warn "WARP 代理未就绪，-warp 节点暂时不可用；直连节点不受影响（之后可重新执行 1) 修复）"
+  fi
 
   local CRT="$CERT_DIR/fullchain.pem" KEY="$CERT_DIR/key.pem"
+  local NEW_CONF="${CONF_JSON}.new"
   jq -n \
   --arg RS "$REALITY_SERVER" --argjson RSP "${REALITY_SERVER_PORT:-443}" --arg UID "$UUID" \
   --arg WSHOST "$WARP_SOCKS_HOST" --argjson WSPORT "$WARP_SOCKS_PORT" \
@@ -1049,26 +1104,39 @@ write_config(){
           final:"direct"
         }
       else
-        { final:"direct" }
+        # sing-box 1.13 起缺 default_domain_resolver 直接 FATAL 拒绝启动（ENABLE_WARP=false 时原来就会起不来）
+        { default_domain_resolver:"dns-remote", final:"direct" }
       end
     )
-  }' > "$CONF_JSON"
+  }' > "$NEW_CONF" || { rm -f "$NEW_CONF"; err "生成配置失败（jq），保留原 config.json"; return 1; }
+
+  # 先 check 再替换：新配置有问题时不覆盖正在用的 config.json，服务不会被一个坏配置弄挂
+  if [[ -x "$BIN_PATH" ]] && ! ENABLE_DEPRECATED_LEGACY_DNS_SERVERS=true "$BIN_PATH" check -c "$NEW_CONF"; then
+    err "新配置未通过 sing-box check，保留原 config.json（问题配置留在 ${NEW_CONF} 供排查）"
+    return 1
+  fi
+  mv -f "$NEW_CONF" "$CONF_JSON"
   save_env
 }
 
 # ===== 防火墙 =====
 open_firewall(){
-  local rules=()
-  rules+=("${PORT_VLESSR}/tcp" "${PORT_VLESS_GRPCR}/tcp" "${PORT_TROJANR}/tcp" "${PORT_VMESS_WS}/tcp")
-  rules+=("${PORT_HY2}/udp" "${PORT_HY2_OBFS}/udp" "${PORT_TUIC}/udp")
-  rules+=("${PORT_SS2022}/tcp" "${PORT_SS2022}/udp" "${PORT_SS}/tcp" "${PORT_SS}/udp")
-  rules+=("${PORT_ANYTLS}/tcp")
-  rules+=("${PORT_VLESSR_W}/tcp" "${PORT_VLESS_GRPCR_W}/tcp" "${PORT_TROJANR_W}/tcp" "${PORT_VMESS_WS_W}/tcp")
-  rules+=("${PORT_HY2_W}/udp" "${PORT_HY2_OBFS_W}/udp" "${PORT_TUIC_W}/udp")
-  rules+=("${PORT_SS2022_W}/tcp" "${PORT_SS2022_W}/udp" "${PORT_SS_W}/tcp" "${PORT_SS_W}/udp")
-  rules+=("${PORT_ANYTLS_W}/tcp")
+  local rules=() all=() r
+  all+=("${PORT_VLESSR:-}/tcp" "${PORT_VLESS_GRPCR:-}/tcp" "${PORT_TROJANR:-}/tcp" "${PORT_VMESS_WS:-}/tcp")
+  all+=("${PORT_HY2:-}/udp" "${PORT_HY2_OBFS:-}/udp" "${PORT_TUIC:-}/udp")
+  all+=("${PORT_SS2022:-}/tcp" "${PORT_SS2022:-}/udp" "${PORT_SS:-}/tcp" "${PORT_SS:-}/udp")
+  all+=("${PORT_ANYTLS:-}/tcp")
+  all+=("${PORT_VLESSR_W:-}/tcp" "${PORT_VLESS_GRPCR_W:-}/tcp" "${PORT_TROJANR_W:-}/tcp" "${PORT_VMESS_WS_W:-}/tcp")
+  all+=("${PORT_HY2_W:-}/udp" "${PORT_HY2_OBFS_W:-}/udp" "${PORT_TUIC_W:-}/udp")
+  all+=("${PORT_SS2022_W:-}/tcp" "${PORT_SS2022_W:-}/udp" "${PORT_SS_W:-}/tcp" "${PORT_SS_W:-}/udp")
+  all+=("${PORT_ANYTLS_W:-}/tcp")
+  sub_enabled && load_sub && all+=("${SUB_PORT:-}/tcp")
+  # 老版本升级上来可能缺某些端口（如 AnyTLS），空的跳过，避免 set -u 退出或写出 "/tcp" 这种坏规则
+  for r in "${all[@]}"; do [[ "$r" == /* ]] || rules+=("$r"); done
 
-  if command -v ufw >/dev/null 2>&1 && ufw status | grep -q -E "active|活跃"; then
+  # 注意：原来 grep "active" 会把 "Status: inactive" 也当成启用，于是只往没启用的 ufw 里加规则、iptables 一条没放
+  # （Oracle 等自带 iptables REJECT 规则、ufw 装了没开的镜像上端口就不通）。LC_ALL=C 固定英文输出再精确匹配
+  if command -v ufw >/dev/null 2>&1 && LC_ALL=C ufw status 2>/dev/null | grep -q '^Status: active'; then
     for r in "${rules[@]}"; do ufw allow "$r" >/dev/null 2>&1 || true; done
     ufw reload >/dev/null 2>&1 || true
 
@@ -1107,10 +1175,30 @@ open_firewall(){
 }
 
 # ===== 分享链接（分组输出 + 提示） =====
-print_links_grouped(){
+conf_has_inbound(){ jq -e --arg t "$1" '.inbounds[]|select(.tag==$t)' "$CONF_JSON" >/dev/null 2>&1; }
+
+# 老版本升级上来，creds.env 里可能缺字段：RS_*（v4.7.0 前没有）、AnyTLS（v4.6.0 前没有）。
+# 查看链接时不改任何文件：缺的 RS_* 直接读正在运行的 config.json，保证链接里的 sni 和服务端一致（#15）
+backfill_from_config(){
+  local pair v tag val
+  for pair in RS_VR:vless-reality RS_GR:vless-grpcr RS_TR:trojan-reality \
+              RS_VRW:vless-reality-warp RS_GRW:vless-grpcr-warp RS_TRW:trojan-reality-warp; do
+    v=${pair%%:*}; tag=${pair#*:}
+    [[ -n "${!v:-}" ]] && continue
+    val=$(jq -r --arg t "$tag" '.inbounds[]|select(.tag==$t)|.tls.server_name // empty' "$CONF_JSON" 2>/dev/null || true)
+    printf -v "$v" '%s' "${val:-$REALITY_SERVER}"
+  done
+}
+
+# 生成全部分享链接，放进全局数组 LINKS_DIRECT / LINKS_WARP / LINKS_PCS（查看链接和订阅共用这一份）
+# 同时设置 LINK_IP、LINK_MODE（IPv6 取不到时回退成 4）、HAS_ANYTLS
+build_links(){
   load_env; load_creds; load_ports
   ensure_dirs
+  backfill_from_config
   mk_cert    # 确保 CRT_SHA256 已赋值（pinnedPeerCertSha256 节点需要）
+  HAS_ANYTLS=false
+  [[ -n "${ANYTLS_PWD:-}" ]] && conf_has_inbound anytls && HAS_ANYTLS=true
   local mode="${1:-4}" ip host
   if [[ "$mode" == "6" ]]; then
     ip="$(get_ip6)"
@@ -1122,9 +1210,11 @@ print_links_grouped(){
   else
     ip="$(get_ip4)"
   fi
+  LINK_IP="$ip"; LINK_MODE="$mode"
   host="$(fmt_host_for_uri "$ip")"
+  local has_anytls=$HAS_ANYTLS
   local links_direct=() links_warp=()
-  # 直连9
+  # 直连 10
   links_direct+=("vless://${UUID}@${host}:${PORT_VLESSR}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${RS_VR}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality")
   links_direct+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR}?encryption=none&security=reality&sni=${RS_GR}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality")
   links_direct+=("trojan://${UUID}@${host}:${PORT_TROJANR}?security=reality&sni=${RS_TR}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality")
@@ -1137,10 +1227,11 @@ JSON
   links_direct+=("hy2://$(urlenc "${HY2_PWD2}")@${host}:${PORT_HY2_OBFS}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")#hysteria2-obfs")
   links_direct+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${host}:${PORT_SS2022}#ss2022")
   links_direct+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS}#ss")
-  links_direct+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5")
-  links_direct+=("anytls://$(urlenc "${ANYTLS_PWD}")@${host}:${PORT_ANYTLS}?insecure=1&sni=${REALITY_SERVER}#anytls")
+  # allow_insecure=1 是 v2rayN 的 TUIC 解析唯一认的写法（它不读 insecure / allowInsecure，#17）；另外两个留给其他客户端
+  links_direct+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC}?congestion_control=bbr&alpn=h3&insecure=1&allow_insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5")
+  $has_anytls && links_direct+=("anytls://$(urlenc "${ANYTLS_PWD}")@${host}:${PORT_ANYTLS}?insecure=1&sni=${REALITY_SERVER}#anytls")
 
-  # WARP 9
+  # WARP 10
   links_warp+=("vless://${UUID}@${host}:${PORT_VLESSR_W}?encryption=none&flow=xtls-rprx-vision&security=reality&sni=${RS_VRW}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#vless-reality-warp")
   links_warp+=("vless://${UUID}@${host}:${PORT_VLESS_GRPCR_W}?encryption=none&security=reality&sni=${RS_GRW}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=grpc&serviceName=${GRPC_SERVICE}#vless-grpc-reality-warp")
   links_warp+=("trojan://${UUID}@${host}:${PORT_TROJANR_W}?security=reality&sni=${RS_TRW}&fp=chrome&pbk=${REALITY_PUB}&sid=${REALITY_SID}&type=tcp#trojan-reality-warp")
@@ -1153,23 +1244,180 @@ JSON
   links_warp+=("hy2://$(urlenc "${HY2_PWD2}")@${host}:${PORT_HY2_OBFS_W}?insecure=1&allowInsecure=1&sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")#hysteria2-obfs-warp")
   links_warp+=("ss://$(printf "%s" "2022-blake3-aes-256-gcm:${SS2022_KEY}" | b64enc)@${host}:${PORT_SS2022_W}#ss2022-warp")
   links_warp+=("ss://$(printf "%s" "aes-256-gcm:${SS_PWD}" | b64enc)@${host}:${PORT_SS_W}#ss-warp")
-  links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
-  links_warp+=("anytls://$(urlenc "${ANYTLS_PWD}")@${host}:${PORT_ANYTLS_W}?insecure=1&sni=${REALITY_SERVER}#anytls-warp")
+  links_warp+=("tuic://${UUID}:$(urlenc "${UUID}")@${host}:${PORT_TUIC_W}?congestion_control=bbr&alpn=h3&insecure=1&allow_insecure=1&allowInsecure=1&sni=${REALITY_SERVER}#tuic-v5-warp")
+  $has_anytls && links_warp+=("anytls://$(urlenc "${ANYTLS_PWD}")@${host}:${PORT_ANYTLS_W}?insecure=1&sni=${REALITY_SERVER}#anytls-warp")
 
-echo -e "${C_BLUE}${C_BOLD}分享链接（20 个）${C_RESET}"
+  # Xray-core v26.2.6+ 移除了 allowInsecure，hysteria2 用证书指纹 pcs 的版本
+  local links_pcs=()
+  links_pcs+=("hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-pinnedPeerCertSha256")
+  links_pcs+=("hy2://$(urlenc "${HY2_PWD2}")@${host}:${PORT_HY2_OBFS}?sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")&pcs=${CRT_SHA256}#hysteria2-obfs-pinnedPeerCertSha256")
+  links_pcs+=("hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-warp-pinnedPeerCertSha256")
+  links_pcs+=("hy2://$(urlenc "${HY2_PWD2}")@${host}:${PORT_HY2_OBFS_W}?sni=${REALITY_SERVER}&alpn=h3&obfs=salamander&obfs-password=$(urlenc "${HY2_OBFS_PWD}")&pcs=${CRT_SHA256}#hysteria2-obfs-warp-pinnedPeerCertSha256")
+
+  LINKS_DIRECT=("${links_direct[@]}"); LINKS_WARP=("${links_warp[@]}"); LINKS_PCS=("${links_pcs[@]}")
+}
+
+print_links_grouped(){
+  build_links "${1:-4}"
+  local links_direct=("${LINKS_DIRECT[@]}") links_warp=("${LINKS_WARP[@]}") has_anytls=$HAS_ANYTLS l
+  local nd=${#links_direct[@]} nw=${#links_warp[@]}
+  echo -e "${C_BLUE}${C_BOLD}分享链接（$((nd + nw)) 个）${C_RESET}"
   hr
-  echo -e "${C_CYAN}${C_BOLD}【直连节点（10）】${C_RESET}（vless-reality / vless-grpc-reality / trojan-reality / vmess-ws / hy2 / hy2-obfs / ss2022 / ss / tuic / anytls）"
+  echo -e "${C_CYAN}${C_BOLD}【直连节点（${nd}）】${C_RESET}（vless-reality / vless-grpc-reality / trojan-reality / vmess-ws / hy2 / hy2-obfs / ss2022 / ss / tuic / anytls）"
   for l in "${links_direct[@]}"; do echo "  $l"; done
   hr
-  echo -e "${C_CYAN}${C_BOLD}【WARP 节点（10）】${C_RESET}（同上 10 种，带 -warp）"
-  echo -e "${C_DIM}说明：带 -warp 的 10 个节点走 Cloudflare WARP 出口，流媒体解锁更友好${C_RESET}"
+  echo -e "${C_CYAN}${C_BOLD}【WARP 节点（${nw}）】${C_RESET}（同上 ${nw} 种，带 -warp）"
+  echo -e "${C_DIM}说明：带 -warp 的节点走 Cloudflare WARP 出口，流媒体解锁更友好${C_RESET}"
   for l in "${links_warp[@]}"; do echo "  $l"; done
+  if ! $has_anytls; then
+    echo -e "${C_YELLOW}  当前配置是旧版本生成的，还没有 AnyTLS 节点；执行 1) 安装/部署 即可补上${C_RESET}"
+  fi
+  local rv retired=()
+  for rv in RS_VR RS_GR RS_TR RS_VRW RS_GRW RS_TRW; do
+    [[ " $REALITY_RETIRED " == *" ${!rv} "* ]] && retired+=("${!rv}")
+  done
+  if (( ${#retired[@]} )); then
+    echo -e "${C_YELLOW}  ⚠ 有 ${#retired[@]} 个 Reality 节点还在用已失效的偷域名 ${retired[0]}，可能连不上。${C_RESET}"
+    echo -e "${C_YELLOW}    执行 1) 安装/部署 会自动换成可用域名（端口、密码不变，只有这些节点的 sni 变），之后重新导入这几个节点${C_RESET}"
+  fi
   hr
   echo -e "${C_YELLOW}📌 如果你使用 v2rayN/Xray-core v26.2.6+，hysteria2 节点的 allowInsecure 已被移除，${C_RESET}"
-  echo -e "${C_YELLOW}   请改用以下 pinnedPeerCertSha256 节点：${C_RESET}"
-  echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-pinnedPeerCertSha256"
-  echo "  hy2://$(urlenc "${HY2_PWD}")@${host}:${PORT_HY2_W}?sni=${REALITY_SERVER}&pcs=${CRT_SHA256}#hysteria2-warp-pinnedPeerCertSha256"
+  echo -e "${C_YELLOW}   请改用以下 pinnedPeerCertSha256 节点（含混淆版）：${C_RESET}"
+  for l in "${LINKS_PCS[@]}"; do echo "  $l"; done
   hr
+  # 开了订阅的话顺手刷新订阅内容（只用 IPv4 那一份，查看 IPv6 链接时不动订阅）
+  if sub_enabled; then
+    [[ "$LINK_MODE" == "4" ]] && sub_write_file
+    echo -e "${C_CYAN}${C_BOLD}订阅链接：${C_RESET}$(sub_url)"
+    hr
+  fi
+}
+
+# ===== 本机 HTTP 订阅（#14）=====
+# 做法同 sing-box-yg：busybox httpd 托管 /<随机口令>/sub.txt；没有 busybox 时用 python3 http.server。
+# 用 systemd 托管（开机自启），口令 32 位随机串，不复用节点 UUID；每层目录放空 index.html，访问目录拿不到列表。
+# 注意：HTTP 明文，拉订阅时节点信息会明文经过网络
+SUB_ENV="$SB_DIR/sub.env"
+SUB_WWW="$SB_DIR/sub/www"
+SUB_SERVICE="sing-box-plus-sub.service"
+
+sub_enabled(){ [[ -f "$SUB_ENV" ]]; }
+load_sub(){ safe_source_env "$SUB_ENV"; }
+sub_url(){ load_sub; printf 'http://%s:%s/%s/sub.txt' "$(fmt_host_for_uri "${LINK_IP:-$(get_ip4)}")" "$SUB_PORT" "$SUB_TOKEN"; }
+
+# 把 build_links 生成的链接写成 base64 订阅（v2rayN / Shadowrocket / NekoBox / Hiddify 通用格式）
+sub_write_file(){
+  sub_enabled && load_sub || return 0
+  local dir="$SUB_WWW/$SUB_TOKEN"
+  mkdir -p "$dir"
+  : > "$SUB_WWW/index.html"; : > "$dir/index.html"
+  printf '%s\n' "${LINKS_DIRECT[@]}" "${LINKS_WARP[@]}" "${LINKS_PCS[@]}" | b64enc > "$dir/sub.txt.tmp"
+  chmod 644 "$dir/sub.txt.tmp"
+  mv -f "$dir/sub.txt.tmp" "$dir/sub.txt"
+}
+
+# 换端口 / 重新部署后调用：重新生成链接并刷新订阅内容
+sub_refresh(){
+  sub_enabled || return 0
+  build_links 4 >/dev/null 2>&1 && sub_write_file || warn "订阅内容刷新失败，可在 7) 订阅链接 里重试"
+}
+
+sub_server_cmd(){
+  if command -v busybox >/dev/null 2>&1 && busybox --list 2>/dev/null | grep -qx httpd; then
+    printf '%s httpd -f -p %s -h %s' "$(command -v busybox)" "$SUB_PORT" "$SUB_WWW"
+  elif command -v python3 >/dev/null 2>&1; then
+    printf '%s -m http.server %s' "$(command -v python3)" "$SUB_PORT"   # 目录由 WorkingDirectory 指定，兼容 python3.6
+  else
+    return 1
+  fi
+}
+
+sub_write_unit(){
+  local cmd
+  cmd=$(sub_server_cmd) || { err "没有可用的 HTTP 服务程序（busybox 或 python3），无法开启订阅"; return 1; }
+  cat > "/etc/systemd/system/${SUB_SERVICE}" <<EOF
+[Unit]
+Description=Sing-Box-Plus subscription (HTTP)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+NoNewPrivileges=yes
+WorkingDirectory=${SUB_WWW}
+ExecStart=${cmd}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+EOF
+  systemctl daemon-reload
+  systemctl enable "${SUB_SERVICE}" >/dev/null 2>&1 || true
+  systemctl restart "${SUB_SERVICE}"
+}
+
+# 用法：sub_enable [reset]   reset = 换一个新口令（旧订阅地址立即失效）
+sub_enable(){
+  local mode="${1:-}" v
+  load_sub 2>/dev/null || true
+  load_ports || true
+  if [[ -z "${SUB_PORT:-}" ]]; then
+    rand_ports_reset
+    for v in "${PORT_VARS[@]}"; do [[ -n "${!v:-}" ]] && PORTS+=("${!v}"); done
+    gen_port SUB_PORT
+  fi
+  if [[ -z "${SUB_TOKEN:-}" || "$mode" == "reset" ]]; then
+    [[ -n "${SUB_TOKEN:-}" ]] && rm -rf "${SUB_WWW:?}/${SUB_TOKEN}"
+    SUB_TOKEN=$(openssl rand -hex 16)
+  fi
+  printf 'SUB_PORT=%s\nSUB_TOKEN=%s\n' "$SUB_PORT" "$SUB_TOKEN" > "$SUB_ENV"
+  command -v busybox >/dev/null 2>&1 || ensure_deps busybox >/dev/null 2>&1 || true
+  build_links 4 >/dev/null
+  sub_write_file
+  sub_write_unit || { rm -f "$SUB_ENV"; return 1; }
+  open_firewall
+  sleep 1
+  if systemctl is-active --quiet "${SUB_SERVICE}"; then
+    ok "订阅已开启（端口 ${SUB_PORT}/tcp，云厂商有安全组的话记得放行）"
+  else
+    err "订阅服务未能启动："; journalctl -u "${SUB_SERVICE}" -n 20 --no-pager 2>/dev/null || true
+    return 1
+  fi
+  echo -e "${C_CYAN}${C_BOLD}订阅链接：${C_RESET}$(sub_url)"
+  echo -e "${C_DIM}v2rayN：订阅分组 → 添加，粘贴上面的地址；Shadowrocket / NekoBox / Hiddify 直接添加订阅即可${C_RESET}"
+}
+
+sub_disable(){
+  systemctl disable --now "${SUB_SERVICE}" >/dev/null 2>&1 || true
+  rm -f "/etc/systemd/system/${SUB_SERVICE}"
+  systemctl daemon-reload >/dev/null 2>&1 || true
+  rm -rf "${SB_DIR:?}/sub" "$SUB_ENV"
+}
+
+sub_menu(){
+  local c="" yn=""
+  if sub_enabled && load_sub; then
+    build_links 4 >/dev/null; sub_write_file
+    echo -e "${C_CYAN}${C_BOLD}订阅链接：${C_RESET}$(sub_url)"
+    echo -e "服务状态：$(systemctl is-active --quiet "${SUB_SERVICE}" && echo -e "${C_GREEN}运行中${C_RESET}" || echo -e "${C_RED}未运行${C_RESET}")"
+    hr
+    echo "  1) 更换订阅地址（旧地址立即失效，导入过的客户端要重新添加）"
+    echo "  2) 关闭订阅"
+    echo "  0) 返回"
+    read -erp "选择: " c || c=0
+    case "$c" in
+      1) sub_enable reset || true ;;
+      2) sub_disable; ok "订阅已关闭，原订阅地址已失效" ;;
+    esac
+  else
+    warn "订阅走 HTTP 明文：客户端拉订阅时，全部节点的地址和密钥会明文经过网络。"
+    warn "建议导入完就回来关掉，或定期用 1) 更换订阅地址。"
+    read -erp "开启本机订阅？[y/N]: " yn || true
+    [[ "$yn" =~ ^[Yy]$ ]] && { sub_enable || true; }
+  fi
+  return 0   # 用户选"不开启"时上一行是 false，不显式 return 0 的话 set -e 会让脚本直接退出
 }
 
 # ===== BBR =====
@@ -1205,6 +1453,7 @@ banner(){
   echo -e "  ${C_BLUE}1)${C_RESET} 安装/部署（20 节点）"
   echo -e "  ${C_GREEN}2)${C_RESET} 查看分享链接（IPv4）"
   echo -e "  ${C_GREEN}6)${C_RESET} 查看分享链接（IPv6）"
+  echo -e "  ${C_GREEN}7)${C_RESET} 订阅链接（本机 HTTP，开启/查看/关闭）"
   echo -e "  ${C_GREEN}3)${C_RESET} 重启服务"
   echo -e "  ${C_GREEN}4)${C_RESET} 一键更换所有端口"
   echo -e "  ${C_GREEN}5)${C_RESET} 一键开启 BBR"
@@ -1230,17 +1479,30 @@ rotate_ports(){
   PORT_VLESSR_W=""; PORT_VLESS_GRPCR_W=""; PORT_TROJANR_W=""; PORT_HY2_W=""; PORT_VMESS_WS_W=""
   PORT_HY2_OBFS_W=""; PORT_SS2022_W=""; PORT_SS_W=""; PORT_TUIC_W=""; PORT_ANYTLS_W=""
 
+  cp -f "$SB_DIR/ports.env" "$SB_DIR/ports.env.bak" 2>/dev/null || true
   save_all_ports          # 重新生成并保存 20 个不重复端口
-  write_config            # 用新端口重写 /opt/sing-box/config.json
+  # 用新端口重写 config.json；失败就把 ports.env 换回去，否则查看链接显示的是新端口、服务跑的是旧端口
+  if ! write_config; then
+    mv -f "$SB_DIR/ports.env.bak" "$SB_DIR/ports.env" 2>/dev/null || true
+    err "更换端口失败，已恢复原端口，服务未改动"
+    read -erp "回车返回..." _ || true
+    return 0
+  fi
+  rm -f "$SB_DIR/ports.env.bak"
   open_firewall           # ★ 新增：把“当前配置中的端口”全部放行
   systemctl restart "${SYSTEMD_SERVICE}"
+  sub_refresh             # 开了订阅的话，订阅内容换成新端口（订阅地址本身不变）
 
   info "已更换端口并重启。"
-  read -p "回车返回..." _ || true
+  read -erp "回车返回..." _ || true
 }
 
 
 uninstall_all(){
+  local yn=""
+  read -erp "确认卸载？将删除 ${SB_DIR}（全部节点密钥、端口、证书），所有已导入的节点都会失效 [y/N]: " yn || true
+  [[ "$yn" =~ ^[Yy]$ ]] || { info "已取消卸载"; exit 0; }
+  sub_disable
   systemctl stop "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
   systemctl disable "${SYSTEMD_SERVICE}" >/dev/null 2>&1 || true
   rm -f "/etc/systemd/system/${SYSTEMD_SERVICE}"
@@ -1277,18 +1539,27 @@ ensure_installed_or_hint(){
 # ===== 菜单 =====
 menu(){
   banner
-  read -rp "选择: " op || true
+  # -e 用 readline 读输入：Backspace 发 ^H 还是 ^? 都能正常删除；读到 EOF（没有终端）直接退出，避免 menu 无限递归
+  read -erp "选择: " op || exit 0
   case "${op:-}" in
   1)
   sbp_bootstrap                                     # 依赖/二进制回退
   set +e                                            # ← 关闭严格退出，避免中途被杀掉
   echo -e "${C_BLUE}[信息] 正在检查 sing-box 安装状态...${C_RESET}"
   install_singbox            || true
-  ensure_warpcli_proxy        || true
-  write_config               || { echo "[ERR] 生成配置失败"; }
+  # WARP 由 write_config 内部初始化（原来这里先调一次、write_config 里再调一次，重复跑 WARP 检测）
+  if ! write_config; then
+    set -e
+    die "生成配置失败，未重启服务。请把上面的报错发到 issues"
+  fi
   write_systemd              || true
   open_firewall              || true
   systemctl restart "${SYSTEMD_SERVICE}" || true
+  sleep 1
+  if ! systemctl is-active --quiet "${SYSTEMD_SERVICE}"; then
+    err "sing-box 未能启动，最近日志："
+    journalctl -u "${SYSTEMD_SERVICE}" -n 30 --no-pager 2>/dev/null || true
+  fi
   set -e                                            # ← 恢复严格模式
   print_links_grouped
   exit 0                                          # ← 打印后直接退出
@@ -1296,9 +1567,10 @@ menu(){
   2) if ensure_installed_or_hint; then print_links_grouped 4; exit 0; fi ;;
 
   6) if ensure_installed_or_hint; then print_links_grouped 6; exit 0; fi ;;
-    3) if ensure_installed_or_hint; then restart_service; fi; read -rp "回车返回..." _ || true; menu ;;
+  7) if ensure_installed_or_hint; then sub_menu; fi; read -erp "回车返回..." _ || true; menu ;;
+    3) if ensure_installed_or_hint; then restart_service; fi; read -erp "回车返回..." _ || true; menu ;;
    4) if ensure_installed_or_hint; then rotate_ports; fi; menu ;;
-    5) enable_bbr; read -rp "回车返回..." _ || true; menu ;;
+    5) enable_bbr; read -erp "回车返回..." _ || true; menu ;;
     8) uninstall_all ;; # 直接退出
     0) exit 0 ;;
     *) menu ;;
